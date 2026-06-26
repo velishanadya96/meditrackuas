@@ -1,0 +1,317 @@
+<?php
+session_start();
+
+// Kalau sudah login, langsung ke dashboard
+if (isset($_SESSION['user_id'])) {
+    header('Location: /rekam-medis-fixed/dashboarduser.php');
+    exit;
+}
+?>
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediTrack - Konsultasi Dokter & Rekam Medis Digital</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body{
+    background:#eaf7ff;
+    font-family:'Poppins',sans-serif;
+    color:#0f172a;
+}
+.navbar{
+    background:#38bdf8;
+    padding:18px 0;
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+}
+.navbar-brand{
+    font-size:2rem;
+    font-weight:700;
+    color:white !important;
+}
+.btn-login{
+    border:2px solid white;
+    color:white;
+    border-radius:12px;
+    padding:10px 25px;
+}
+.btn-login:hover{
+    background:white;
+    color:#38bdf8;
+}
+.btn-register{
+    background:white;
+    color:#0ea5e9;
+    border:none;
+    border-radius:12px;
+    padding:10px 25px;
+    font-weight:600;
+}
+.btn-register:hover{
+    background:#f8fafc;
+}
+.hero{
+    padding:80px 0;
+}
+.hero-card{
+    background:white;
+    border-radius:35px;
+    padding:60px;
+    box-shadow:0 15px 40px rgba(14,165,233,.15);
+}
+.hero-title{
+    font-size:4rem;
+    font-weight:800;
+    line-height:1.2;
+}
+.hero-title span{
+    color:#0ea5e9;
+}
+.hero-text{
+    color:#64748b;
+    font-size:1.15rem;
+    margin-top:20px;
+}
+.btn-start{
+    background:#0ea5e9;
+    color:white;
+    border:none;
+    border-radius:15px;
+    padding:14px 35px;
+    font-weight:600;
+}
+.btn-start:hover{
+    background:#0284c7;
+    color:white;
+}
+.btn-feature{
+    border:2px solid #0ea5e9;
+    color:#0ea5e9;
+    border-radius:15px;
+    padding:14px 35px;
+    font-weight:600;
+}
+.btn-feature:hover{
+    background:#0ea5e9;
+    color:white;
+}
+.hero-img{
+    max-width:450px;
+    filter:drop-shadow(0 20px 30px rgba(0,0,0,.15));
+}
+.stats{
+    margin-top:40px;
+}
+.stats-card{
+    background:#f8fbff;
+    border-radius:20px;
+    padding:25px;
+    text-align:center;
+    box-shadow:0 5px 15px rgba(14,165,233,.08);
+}
+.stats-number{
+    font-size:2rem;
+    font-weight:700;
+    color:#0ea5e9;
+}
+.section{
+    padding:90px 0;
+}
+.section-title{
+    font-size:2.5rem;
+    font-weight:700;
+    margin-bottom:50px;
+}
+.feature-card{
+    background:white;
+    border:none;
+    border-radius:25px;
+    padding:35px;
+    height:100%;
+    box-shadow:0 10px 30px rgba(14,165,233,.10);
+    transition:.3s;
+}
+.feature-card:hover{
+    transform:translateY(-8px);
+}
+.feature-icon{
+    font-size:3rem;
+    margin-bottom:20px;
+}
+.about-card{
+    background:white;
+    border-radius:30px;
+    padding:50px;
+    box-shadow:0 10px 30px rgba(14,165,233,.12);
+}
+.about-img{
+    border-radius:25px;
+}
+.cta{
+    background:linear-gradient(135deg,#38bdf8,#0ea5e9);
+    color:white;
+    border-radius:35px;
+    padding:70px;
+    text-align:center;
+}
+.cta h2{
+    font-size:3rem;
+    font-weight:700;
+}
+.cta-btn{
+    background:white;
+    color:#0ea5e9;
+    padding:15px 40px;
+    border-radius:15px;
+    font-weight:700;
+    text-decoration:none;
+    display:inline-block;
+    margin-top:20px;
+}
+footer{
+    background:white;
+    margin-top:80px;
+    padding:40px 0;
+    text-align:center;
+    box-shadow:0 -5px 20px rgba(0,0,0,.03);
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark">
+<div class="container">
+    <a class="navbar-brand" href="#">MediTrack</a>
+    <div>
+        <a href="/rekam-medis-fixed/login.php" class="btn btn-login me-2">Login</a>
+        <a href="/rekam-medis-fixed/register.php" class="btn btn-register">Register</a>
+    </div>
+</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+<div class="container">
+<div class="hero-card">
+<div class="row align-items-center">
+
+    <div class="col-lg-6">
+        <h1 class="hero-title">
+            Konsultasi Dokter & Rekam Medis <span>Digital</span>
+        </h1>
+        <p class="hero-text">
+            Platform layanan kesehatan instan: pilih dokter, ambil antrean konsultasi via chat, dan akses rekam medis Anda kapan saja dengan aman.
+        </p>
+        <div class="mt-4">
+            <a href="/rekam-medis-fixed/login.php" class="btn btn-start me-3">Mulai Sekarang</a>
+            <a href="#fitur" class="btn btn-feature">Lihat Fitur</a>
+        </div>
+        <div class="row stats mt-5">
+            <div class="col-4">
+                <div class="stats-card">
+                    <div class="stats-number">500+</div>
+                    <small>Pasien</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stats-card">
+                    <div class="stats-number">50+</div>
+                    <small>Dokter</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stats-card">
+                    <div class="stats-number">24/7</div>
+                    <small>Akses</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 text-center">
+        <img src="https://cdn-icons-png.flaticon.com/512/2966/2966486.png" class="img-fluid hero-img">
+    </div>
+
+</div>
+</div>
+</div>
+</section>
+
+<!-- FITUR -->
+<section id="fitur" class="section">
+<div class="container">
+    <h2 class="section-title text-center">Fitur Unggulan MediTrack</h2>
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h4>Jadwal & Antrian Online</h4>
+                <p>Cek ketersediaan jadwal dokter spesialis pilihan Anda dan ambil nomor antrean konsultasi secara instan tanpa perlu antre fisik.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon">👨‍⚕️</div>
+                <h4>Konsultasi via Chat</h4>
+                <p>Hubungi dokter secara langsung melalui fitur chat interaktif untuk konsultasi keluhan kesehatan yang praktis dan fleksibel.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="feature-icon">📂</div>
+                <h4>Rekam Medis Digital</h4>
+                <p>Simpan dan akses riwayat pemeriksaan, diagnosis dokter, serta resep obat Anda secara digital dalam satu platform yang aman.</p>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<!-- ABOUT -->
+<section class="section">
+<div class="container">
+<div class="about-card">
+<div class="row align-items-center">
+    <div class="col-lg-6">
+        <h2 class="fw-bold mb-4">Mengapa Memilih MediTrack?</h2>
+        <p>MediTrack hadir sebagai solusi kesehatan digital praktis yang menghubungkan Anda dengan dokter secara langsung. Mulai dari cek jadwal, antrean online, hingga chat konsultasi dan rekam medis, semua bisa diakses dalam satu platform yang aman.</p>
+        <ul>
+            <li>✔ Jadwal Dokter Tersedia</li>
+            <li>✔ Booking Antrean Tanpa Ribet</li>
+            <li>✔ Konsultasi via Chat Interaktif</li>
+            <li>✔ Rekam Medis Digital Aman</li>
+        </ul>
+    </div>
+    <div class="col-lg-6">
+        <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800" class="img-fluid about-img">
+    </div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- CTA -->
+<section class="section">
+<div class="container">
+<div class="cta">
+    <h2>Mulai Konsultasi Sekarang!</h2>
+    <p class="mt-3">Mulai hubungi dokter dengan lebih cepat dan efisien.</p>
+    <a href="/rekam-medis-fixed/register.php" class="cta-btn">Daftar Sekarang</a>
+</div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+<div class="container">
+    <h4 class="fw-bold">MediTrack</h4>
+    <p class="text-muted">Konsultasi Online dengan Rekam Medis</p>
+    <p class="mb-0">© 2026 MediTrack. All Rights Reserved.</p>
+</div>
+</footer>
+
+</body>
+</html>
