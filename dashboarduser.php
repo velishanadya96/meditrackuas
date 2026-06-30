@@ -7,40 +7,22 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId    = $_SESSION['user_id'];
-$userName  = $_SESSION['user_name'];
-$db        = getDB();
-$success   = '';
-$error     = '';
+$userId   = $_SESSION['user_id'];
+$userName = $_SESSION['user_name'];
+$db       = getDB();
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nama_pasien     = trim($_POST['nama_pasien']     ?? '');
-    $tanggal_periksa = trim($_POST['tanggal_periksa'] ?? '');
-    $diagnosa        = trim($_POST['diagnosa']        ?? '');
-    $nama_dokter     = trim($_POST['nama_dokter']     ?? '');
-    $poliklinik      = trim($_POST['poliklinik']      ?? '');
-    $catatan         = trim($_POST['catatan']         ?? '');
-
-    if (!$nama_pasien || !$tanggal_periksa || !$diagnosa || !$nama_dokter || !$poliklinik) {
-        $error = 'Semua field wajib diisi (kecuali catatan).';
-    } else {
-        $ins = $db->prepare(
-            'INSERT INTO rekam_medis
-             (user_id, nama_pasien, tanggal_periksa, diagnosa, nama_dokter, poliklinik, catatan)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
-        );
-        $ins->execute([$userId, $nama_pasien, $tanggal_periksa, $diagnosa, $nama_dokter, $poliklinik, $catatan]);
-        $success = 'Data rekam medis berhasil disimpan!';
-    }
-}
-
+// Ambil rekam medis user ini (read-only)
 $stmt = $db->prepare('SELECT * FROM rekam_medis WHERE user_id = ? ORDER BY tanggal_periksa DESC');
 $stmt->execute([$userId]);
 $data = $stmt->fetchAll();
 
 $dokterUnik = count(array_unique(array_column($data, 'nama_dokter')));
 
-// Deteksi halaman aktif
+// Hitung pesan admin yang belum dibaca
+$stmtUnread = $db->prepare("SELECT COUNT(*) FROM konsultasi_chat WHERE user_id = ? AND pengirim = 'admin' AND dibaca = 0");
+$stmtUnread->execute([$userId]);
+$unreadCount = $stmtUnread->fetchColumn();
+
 $page = $_GET['page'] ?? 'dashboard';
 ?>
 <!DOCTYPE html>
@@ -60,11 +42,7 @@ $page = $_GET['page'] ?? 'dashboard';
             color: #0f172a;
             margin: 0;
         }
-
-        /* ── LAYOUT ── */
         .wrapper { display: flex; min-height: 100vh; }
-
-        /* ── SIDEBAR ── */
         .sidebar {
             width: 240px; flex-shrink: 0;
             background: linear-gradient(180deg, #0369a1 0%, #0284c7 60%, #38bdf8 100%);
@@ -72,122 +50,47 @@ $page = $_GET['page'] ?? 'dashboard';
             position: sticky; top: 0; height: 100vh;
             box-shadow: 4px 0 20px rgba(0,0,0,.12);
         }
-        .sidebar-brand {
-            font-size: 1.6rem; font-weight: 800; color: white;
-            padding: 24px 20px 4px; letter-spacing: -.5px;
-        }
+        .sidebar-brand { font-size: 1.6rem; font-weight: 800; color: white; padding: 24px 20px 4px; letter-spacing: -.5px; }
         .sidebar-brand span { color: #bae6fd; }
-        .sidebar-tagline {
-            color: #bae6fd; font-size: .72rem;
-            padding: 0 20px 18px;
-            border-bottom: 1px solid rgba(255,255,255,.15);
-        }
+        .sidebar-tagline { color: #bae6fd; font-size: .72rem; padding: 0 20px 18px; border-bottom: 1px solid rgba(255,255,255,.15); }
         .sidebar-nav { padding: 14px 10px; flex: 1; }
         .nav-link-item {
             display: flex; align-items: center; gap: 10px;
             padding: 10px 14px; border-radius: 12px;
             color: #e0f2fe; font-weight: 500; font-size: .88rem;
             text-decoration: none; transition: .2s; margin-bottom: 3px;
+            position: relative;
         }
         .nav-link-item:hover { background: rgba(255,255,255,.18); color: white; }
         .nav-link-item.active { background: rgba(255,255,255,.22); color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-        .nav-section-label {
-            font-size: .68rem; font-weight: 700; letter-spacing: .08em;
-            color: rgba(255,255,255,.45); padding: 12px 14px 4px; text-transform: uppercase;
-        }
-        .sidebar-footer {
-            padding: 16px 20px;
-            border-top: 1px solid rgba(255,255,255,.15);
-        }
+        .nav-section-label { font-size: .68rem; font-weight: 700; letter-spacing: .08em; color: rgba(255,255,255,.45); padding: 12px 14px 4px; text-transform: uppercase; }
+        .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.15); }
         .sidebar-user-name { color: white; font-weight: 700; font-size: .88rem; }
         .sidebar-user-role { color: #bae6fd; font-size: .72rem; margin-bottom: 10px; }
-        .btn-logout-sidebar {
-            display: flex; align-items: center; gap: 7px;
-            color: #fca5a5; font-size: .82rem;
-            text-decoration: none; transition: .2s;
-        }
+        .btn-logout-sidebar { display: flex; align-items: center; gap: 7px; color: #fca5a5; font-size: .82rem; text-decoration: none; transition: .2s; }
         .btn-logout-sidebar:hover { color: #f87171; }
-
-        /* ── MAIN ── */
         .main-content { flex: 1; padding: 32px; overflow: auto; }
-
-        /* ── TOPBAR ── */
-        .topbar {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 28px;
-        }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
         .topbar-title { font-size: 1.6rem; font-weight: 800; color: #0f172a; }
         .topbar-title span { color: #0ea5e9; }
         .topbar-sub { color: #64748b; font-size: .88rem; margin-top: 2px; }
-        .topbar-badge {
-            background: white; border-radius: 50px; padding: 8px 18px;
-            font-size: .85rem; font-weight: 600; color: #0369a1;
-            box-shadow: 0 2px 10px rgba(14,165,233,.15);
-        }
-
-        /* ── CARDS ── */
-        .card-custom {
-            background: white; border: none;
-            border-radius: 20px;
-            box-shadow: 0 8px 20px rgba(14,165,233,.12);
-        }
-        .stat-card {
-            border-radius: 18px; padding: 20px; background: white;
-            box-shadow: 0 8px 20px rgba(14,165,233,.12);
-        }
+        .topbar-badge { background: white; border-radius: 50px; padding: 8px 18px; font-size: .85rem; font-weight: 600; color: #0369a1; box-shadow: 0 2px 10px rgba(14,165,233,.15); }
+        .card-custom { background: white; border: none; border-radius: 20px; box-shadow: 0 8px 20px rgba(14,165,233,.12); }
+        .stat-card { border-radius: 18px; padding: 20px; background: white; box-shadow: 0 8px 20px rgba(14,165,233,.12); }
         .stat-number { font-size: 2rem; font-weight: 800; color: #0ea5e9; }
-        .alert-info-custom {
-            background: #dbeafe; border: 1px solid #93c5fd;
-            color: #0369a1; border-radius: 14px;
-        }
-        .card-header-custom {
-            background: #f0f9ff; border-bottom: 1px solid #dbeafe;
-            border-radius: 20px 20px 0 0 !important; padding: 16px 24px;
-        }
-        .badge-custom {
-            background: #38bdf8; color: white;
-            padding: 7px 14px; border-radius: 10px; font-weight: 600; font-size: .82rem;
-        }
-
-        /* ── FORM ── */
-        .form-control, .form-select {
-            border-radius: 11px; border: 1px solid #cbd5e1; padding: 10px 14px;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: #38bdf8; box-shadow: 0 0 0 .2rem rgba(56,189,248,.2);
-        }
-        .btn-save {
-            background: #38bdf8; border: none; color: white;
-            font-weight: 600; border-radius: 11px; padding: 10px 25px;
-        }
-        .btn-save:hover { background: #0ea5e9; color: white; }
-
-        /* ── TABLE ── */
+        .card-header-custom { background: #f0f9ff; border-bottom: 1px solid #dbeafe; border-radius: 20px 20px 0 0 !important; padding: 16px 24px; }
+        .badge-custom { background: #38bdf8; color: white; padding: 7px 14px; border-radius: 10px; font-weight: 600; font-size: .82rem; }
         .table thead { background: #38bdf8; color: white; }
         .table thead th { border: none; }
-
-        /* ── ANTREAN SECTION ── */
-        .antrean-btn {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: linear-gradient(135deg, #0ea5e9, #0284c7);
-            color: white; border: none; border-radius: 14px;
-            padding: 12px 28px; font-weight: 700; font-size: .95rem;
-            text-decoration: none; box-shadow: 0 4px 15px rgba(14,165,233,.3);
-            transition: .2s;
-        }
+        .antrean-btn { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border: none; border-radius: 14px; padding: 12px 28px; font-weight: 700; font-size: .95rem; text-decoration: none; box-shadow: 0 4px 15px rgba(14,165,233,.3); transition: .2s; }
         .antrean-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(14,165,233,.4); color: white; }
-        .antrean-card {
-            background: linear-gradient(135deg, #0ea5e9, #0369a1);
-            border-radius: 20px; padding: 32px;
-            color: white; box-shadow: 0 10px 30px rgba(14,165,233,.3);
-        }
+        .antrean-card { background: linear-gradient(135deg, #0ea5e9, #0369a1); border-radius: 20px; padding: 32px; color: white; box-shadow: 0 10px 30px rgba(14,165,233,.3); }
+        .badge-notif { background: #ef4444; color: white; border-radius: 50px; font-size: .65rem; padding: 2px 7px; position: absolute; top: 6px; right: 10px; font-weight: 700; }
     </style>
 </head>
 <body>
 
 <div class="wrapper">
-
-    <!-- ════════════ SIDEBAR ════════════ -->
     <aside class="sidebar">
         <div class="sidebar-brand">Medi<span>Track.</span></div>
         <div class="sidebar-tagline">Rekam Medis Digital</div>
@@ -214,6 +117,15 @@ $page = $_GET['page'] ?? 'dashboard';
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Jadwal & Antrean
             </a>
+
+            <a href="dashboarduser.php?page=chat"
+               class="nav-link-item <?= ($page === 'chat') ? 'active' : '' ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                Chat Dokter
+                <?php if ($unreadCount > 0): ?>
+                    <span class="badge-notif"><?= $unreadCount ?></span>
+                <?php endif; ?>
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -226,11 +138,9 @@ $page = $_GET['page'] ?? 'dashboard';
         </div>
     </aside>
 
-    <!-- ════════════ MAIN CONTENT ════════════ -->
     <main class="main-content">
 
         <?php if ($page === 'dashboard'): ?>
-        <!-- ── PAGE: DASHBOARD ── -->
         <div class="topbar">
             <div>
                 <div class="topbar-title">🏥 Dashboard <span>MediTrack</span></div>
@@ -239,7 +149,7 @@ $page = $_GET['page'] ?? 'dashboard';
             <div class="topbar-badge">📅 <?= date('d F Y') ?></div>
         </div>
 
-        <div class="alert alert-info-custom mb-4">
+        <div class="alert" style="background:#dbeafe;border:1px solid #93c5fd;color:#0369a1;border-radius:14px;" class="mb-4">
             ✨ Sistem rekam medis digital siap digunakan.
         </div>
 
@@ -258,119 +168,90 @@ $page = $_GET['page'] ?? 'dashboard';
             </div>
             <div class="col-md-4">
                 <div class="stat-card">
-                    <h6 class="text-muted mb-1">Pasien Tercatat</h6>
-                    <div class="stat-number"><?= count($data) ?></div>
+                    <h6 class="text-muted mb-1">Pesan Belum Dibaca</h6>
+                    <div class="stat-number" style="color:<?= $unreadCount > 0 ? '#ef4444' : '#0ea5e9' ?>"><?= $unreadCount ?></div>
                 </div>
             </div>
         </div>
 
-        <!-- Shortcut ke antrean -->
-        <div class="antrean-card mt-4">
-            <h5 class="fw-bold mb-2">📋 Butuh Jadwal Dokter?</h5>
-            <p style="opacity:.85; font-size:.9rem; margin-bottom:18px">
-                Cek jadwal dokter hari ini dan ambil nomor antrean secara online.
-            </p>
-            <a href="dashboarduser.php?page=antrean" class="antrean-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Lihat Jadwal & Antrean
-            </a>
+        <div class="row g-4 mt-1">
+            <div class="col-md-6">
+                <div class="antrean-card">
+                    <h5 class="fw-bold mb-2">📋 Konsultasi Offline</h5>
+                    <p style="opacity:.85;font-size:.9rem;margin-bottom:18px">Cek jadwal dokter dan ambil nomor antrean secara online.</p>
+                    <a href="dashboarduser.php?page=antrean" class="antrean-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        Lihat Jadwal & Antrean
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:32px;color:white;box-shadow:0 10px 30px rgba(109,40,217,.3);height:100%;">
+                    <h5 class="fw-bold mb-2">💬 Konsultasi Online</h5>
+                    <p style="opacity:.85;font-size:.9rem;margin-bottom:18px">Chat langsung dengan dokter tanpa perlu datang ke klinik.</p>
+                    <a href="dashboarduser.php?page=chat" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.2);color:white;border-radius:14px;padding:12px 24px;font-weight:700;font-size:.95rem;text-decoration:none;transition:.2s;" onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">
+                        💬 Chat Dokter
+                        <?php if ($unreadCount > 0): ?>
+                            <span style="background:#ef4444;border-radius:50px;padding:2px 8px;font-size:.75rem;"><?= $unreadCount ?> baru</span>
+                        <?php endif; ?>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <?php elseif ($page === 'rekam'): ?>
-        <!-- ── PAGE: REKAM MEDIS ── -->
         <div class="topbar">
             <div>
                 <div class="topbar-title">📋 <span>Rekam Medis</span></div>
-                <div class="topbar-sub">Input dan lihat data rekam medis pasien</div>
+                <div class="topbar-sub">Riwayat rekam medis kamu</div>
             </div>
-        </div>
-
-        <?php if ($success): ?>
-            <div class="alert alert-success rounded-3 mb-3"><?= htmlspecialchars($success) ?></div>
-        <?php endif; ?>
-        <?php if ($error): ?>
-            <div class="alert alert-danger rounded-3 mb-3"><?= htmlspecialchars($error) ?></div>
-        <?php endif; ?>
-
-        <div class="card-custom p-4 mb-4">
-            <h5 class="fw-bold mb-4">Input Data Baru</h5>
-            <form method="POST" action="dashboarduser.php?page=rekam">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Nama Pasien</label>
-                        <input type="text" name="nama_pasien" class="form-control" placeholder="Nama lengkap" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Tanggal Periksa</label>
-                        <input type="date" name="tanggal_periksa" class="form-control" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Diagnosa</label>
-                    <input type="text" name="diagnosa" class="form-control" placeholder="Contoh: Hipertensi, ISPA, dll" required>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Nama Dokter</label>
-                        <input type="text" name="nama_dokter" class="form-control" placeholder="dr. Nama Dokter" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Poliklinik</label>
-                        <select name="poliklinik" class="form-select" required>
-                            <option value="">Pilih Poliklinik</option>
-                            <option>Umum</option>
-                            <option>Anak</option>
-                            <option>Gigi</option>
-                            <option>Penyakit Dalam</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Catatan Tambahan</label>
-                    <textarea name="catatan" class="form-control" rows="3" placeholder="Keluhan, tindakan, resep..."></textarea>
-                </div>
-                <button type="submit" class="btn btn-save">💾 Simpan Data</button>
-            </form>
         </div>
 
         <div class="card-custom">
             <div class="card-header-custom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">📑 Data Rekam Medis</h5>
+                <h5 class="mb-0 fw-bold">📑 Data Rekam Medis Saya</h5>
                 <span class="badge-custom"><?= count($data) ?> Data</span>
             </div>
             <div class="p-3">
+                <?php if (empty($data)): ?>
+                <div class="text-center text-muted py-5">
+                    <div style="font-size:3rem;margin-bottom:12px;">📂</div>
+                    <div>Belum ada data rekam medis.</div>
+                    <small>Data rekam medis akan muncul setelah dokter mencatatkannya.</small>
+                </div>
+                <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>No</th><th>Nama Pasien</th><th>Tanggal</th>
-                                <th>Diagnosa</th><th>Dokter</th><th>Poliklinik</th>
+                                <th>Diagnosa</th><th>Dokter</th><th>Poliklinik</th><th>Catatan</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($data)): ?>
-                                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada data rekam medis</td></tr>
-                            <?php else: ?>
-                                <?php foreach ($data as $i => $item): ?>
-                                <tr>
-                                    <td><?= $i + 1 ?></td>
-                                    <td><?= htmlspecialchars($item['nama_pasien']) ?></td>
-                                    <td><?= htmlspecialchars($item['tanggal_periksa']) ?></td>
-                                    <td><?= htmlspecialchars($item['diagnosa']) ?></td>
-                                    <td><?= htmlspecialchars($item['nama_dokter']) ?></td>
-                                    <td><?= htmlspecialchars($item['poliklinik']) ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                            <?php foreach ($data as $i => $item): ?>
+                            <tr>
+                                <td><?= $i + 1 ?></td>
+                                <td><?= htmlspecialchars($item['nama_pasien']) ?></td>
+                                <td><?= htmlspecialchars($item['tanggal_periksa']) ?></td>
+                                <td><span class="badge bg-info text-dark"><?= htmlspecialchars($item['diagnosa']) ?></span></td>
+                                <td><?= htmlspecialchars($item['nama_dokter']) ?></td>
+                                <td><?= htmlspecialchars($item['poliklinik']) ?></td>
+                                <td><small class="text-muted"><?= htmlspecialchars($item['catatan'] ?? '-') ?></small></td>
+                            </tr>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
         <?php elseif ($page === 'antrean'): ?>
-        <!-- ── PAGE: JADWAL & ANTREAN ── -->
         <?php include __DIR__ . '/pages/antrean.php'; ?>
+
+        <?php elseif ($page === 'chat'): ?>
+        <?php include __DIR__ . '/pages/chat.php'; ?>
 
         <?php endif; ?>
 
