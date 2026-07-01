@@ -198,9 +198,10 @@ if ($page === 'rekam') {
             $rekamMsg = 'success|Rekam medis berhasil dicatat.';
         }
     }
-    $pasienList = $db->prepare("SELECT DISTINCT u.id, u.name, u.email FROM users u JOIN antrean a ON a.user_id=u.id JOIN jadwal_dokter j ON j.id=a.jadwal_id WHERE j.dokter_id=? ORDER BY u.name ASC");
-    $pasienList->execute([$dokterId]);
-    $pasienList = $pasienList->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Perbaikan line query pasienList agar memanggil seluruh akun pasien
+    $pasienList = $db->query("SELECT id, name, email FROM users WHERE role = 'user' ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    
     $stmtRekam = $db->prepare("SELECT r.*, u.email AS email_pasien FROM rekam_medis r LEFT JOIN users u ON u.id=r.user_id WHERE r.nama_dokter=? ORDER BY r.tanggal_periksa DESC LIMIT 50");
     $stmtRekam->execute([$namaDokter]);
     $rekamList = $stmtRekam->fetchAll(PDO::FETCH_ASSOC);
@@ -208,39 +209,54 @@ if ($page === 'rekam') {
 
 // ════════════════════════════════════════════
 // PAGE: CHAT
-// ════════════════════════════════════════════
+
 if ($page === 'chat') {
     $chatUserId = (int)($_GET['chat_user'] ?? 0);
     $chatUserName = '';
+
+    // Balas Pesan: Terikat ke dokterId yang sedang login dan user yang bersangkutan
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply']) && $chatUserId) {
         $reply = trim($_POST['reply'] ?? '');
         if ($reply !== '') {
-            $db->prepare("INSERT INTO konsultasi_chat (user_id, pengirim, pesan, dibaca, created_at) VALUES (?, 'admin', ?, 1, NOW())")->execute([$chatUserId, $reply]);
+            // Pengirim di-set sebagai 'dokter' dan menyertakan dokter_id
+            $db->prepare("INSERT INTO konsultasi_chat (user_id, dokter_id, pengirim, pesan, dibaca, created_at) 
+                          VALUES (?, ?, 'dokter', ?, 1, NOW())")
+               ->execute([$chatUserId, $dokterId, $reply]);
         }
         header("Location: dashboard_dokter.php?page=chat&chat_user=$chatUserId");
         exit;
     }
+
+    // Ambil daftar Pasien yang pernah mengirim pesan atau membayar KHUSUS ke dokter ini saja (Restriksi)
     $stmtChatUsers = $db->prepare("
-        SELECT DISTINCT u.id, u.name,
-               MAX(c.created_at) AS last_msg,
+        SELECT DISTINCT u.id, u.name, 
+               MAX(c.created_at) AS last_msg, 
                SUM(CASE WHEN c.pengirim='user' AND (c.dibaca_dokter IS NULL OR c.dibaca_dokter=0) THEN 1 ELSE 0 END) AS unread
         FROM konsultasi_chat c
-        JOIN users u ON u.id=c.user_id
-        JOIN antrean a ON a.user_id=u.id
-        JOIN jadwal_dokter j ON j.id=a.jadwal_id
-        WHERE j.dokter_id=?
-        GROUP BY u.id, u.name ORDER BY last_msg DESC
+        JOIN users u ON u.id = c.user_id
+        WHERE c.dokter_id = ?
+        GROUP BY u.id, u.name
+        ORDER BY last_msg DESC
     ");
     $stmtChatUsers->execute([$dokterId]);
     $chatUsers = $stmtChatUsers->fetchAll(PDO::FETCH_ASSOC);
+
+    // Ambil histori pesan antara Dokter ini dengan Pasien yang dipilih
     if ($chatUserId) {
         $su = $db->prepare("SELECT name FROM users WHERE id=?");
         $su->execute([$chatUserId]);
         $chatUserName = $su->fetchColumn();
-        $stmtMsg = $db->prepare("SELECT * FROM konsultasi_chat WHERE user_id=? ORDER BY created_at ASC");
-        $stmtMsg->execute([$chatUserId]);
+
+        // Pastikan hanya menarik chat antara user ini dan dokter ini saja
+        $stmtMsg = $db->prepare("SELECT * FROM konsultasi_chat WHERE user_id = ? AND dokter_id = ? ORDER BY created_at ASC");
+        $stmtMsg->execute([$chatUserId, $dokterId]);
         $chatMessages = $stmtMsg->fetchAll(PDO::FETCH_ASSOC);
-        try { $db->prepare("UPDATE konsultasi_chat SET dibaca_dokter=1 WHERE user_id=? AND pengirim='user'")->execute([$chatUserId]); } catch (Exception $e) {}
+
+        // Tandai pesan pasien tersebut telah dibaca oleh dokter ini
+        try {
+            $db->prepare("UPDATE konsultasi_chat SET dibaca_dokter=1 WHERE user_id=? AND dokter_id=? AND pengirim='user'")
+               ->execute([$chatUserId, $dokterId]);
+        } catch (Exception $e) {}
     }
 }
 ?>

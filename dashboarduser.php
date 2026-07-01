@@ -24,6 +24,23 @@ $stmtUnread->execute([$userId]);
 $unreadCount = $stmtUnread->fetchColumn();
 
 $page = $_GET['page'] ?? 'dashboard';
+
+// Cek apakah user punya antrean aktif (mode Konsultasi Offline).
+// Kalau aktif, akses ke Chat Dokter (mode Online) dikunci total.
+$isAntreanAktif = false;
+try {
+    $stmtCekAntrean = $db->prepare("SELECT COUNT(*) FROM antrean WHERE user_id = ? AND status IN ('menunggu','dikonfirmasi')");
+    $stmtCekAntrean->execute([$userId]);
+    $isAntreanAktif = $stmtCekAntrean->fetchColumn() > 0;
+} catch (Exception $e) {
+    // Tabel antrean belum ada / belum pernah dibuat — anggap tidak ada antrean aktif
+    $isAntreanAktif = false;
+}
+
+if ($page === 'chat' && $isAntreanAktif) {
+    header('Location: dashboarduser.php?page=antrean&chat_blocked=1');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
