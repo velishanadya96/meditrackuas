@@ -6,6 +6,8 @@ require_once __DIR__ . '/db.php';
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['user_role'] === 'admin') {
         header('Location: dashboard_admin.php');
+    } elseif ($_SESSION['user_role'] === 'dokter') {
+        header('Location: dashboard_dokter.php');
     } else {
         header('Location: konsultasi.php');
     }
@@ -33,6 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($user['role'] === 'admin') {
                 header('Location: dashboard_admin.php');
+            } elseif ($user['role'] === 'dokter') {
+                header('Location: dashboard_dokter.php');
             } else {
                 header('Location: konsultasi.php');
             }
