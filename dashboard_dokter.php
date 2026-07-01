@@ -567,7 +567,7 @@ body {
   <!-- Brand -->
   <div class="sidebar-brand">
     <div class="brand-icon"><i class="bi bi-heart-pulse-fill"></i></div>
-    <h5>TeleMed</h5>
+    <h5>MediTrack</h5>
     <p>Portal Dokter</p>
   </div>
 
@@ -996,7 +996,7 @@ body {
 
   <!-- Footer -->
   <footer class="footer">
-    &copy; <?= date('Y') ?> TeleMed – Sistem Telemedicine. Hak cipta dilindungi.
+    &copy; <?= date('Y') ?> MediTrack– Sistem Telemedicine. Hak cipta dilindungi.
   </footer>
 
 </div><!-- /#main-content -->
