@@ -27,24 +27,93 @@ if ($page === 'dokter') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_action'])) {
         $nama         = trim($_POST['nama']);
         $spesialisasi = trim($_POST['spesialisasi']);
+        $emailDokter  = trim($_POST['email_dokter'] ?? '');
+        $passwordBaru = trim($_POST['password_dokter'] ?? '');
 
         if ($_POST['form_action'] === 'tambah') {
-            $stmt = $pdo->prepare("INSERT INTO dokter (nama, spesialisasi) VALUES (?, ?)");
-            $stmt->execute([$nama, $spesialisasi]);
-            $message = 'success|Dokter berhasil ditambahkan.';
+            // Buat akun user dengan role dokter jika email diisi
+            $userId = null;
+            if ($emailDokter !== '') {
+                // Cek email belum dipakai
+                $cekEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                $cekEmail->execute([$emailDokter]);
+                $existingUser = $cekEmail->fetch();
+                if ($existingUser) {
+                    // Email sudah ada, link ke user tersebut dan update role jadi dokter
+                    $pdo->prepare("UPDATE users SET role='dokter' WHERE id=?")->execute([$existingUser['id']]);
+                    $userId = $existingUser['id'];
+                } else {
+                    $pw = $passwordBaru !== '' ? $passwordBaru : 'dokter123';
+                    $hash = password_hash($pw, PASSWORD_BCRYPT);
+                    $ins = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'dokter')");
+                    $ins->execute([$nama, $emailDokter, $hash]);
+                    $userId = $pdo->lastInsertId();
+                }
+            }
+            $stmt = $pdo->prepare("INSERT INTO dokter (nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$nama, $spesialisasi, $userId, $emailDokter ?: null]);
+            $message = 'success|Dokter berhasil ditambahkan' . ($emailDokter ? ' beserta akun login.' : '.');
+
         } elseif ($_POST['form_action'] === 'edit') {
-            $stmt = $pdo->prepare("UPDATE dokter SET nama=?, spesialisasi=? WHERE id=?");
-            $stmt->execute([$nama, $spesialisasi, $_POST['edit_id']]);
+            $editId      = (int) $_POST['edit_id'];
+            $emailDokter = trim($_POST['email_dokter'] ?? '');
+
+            // Ambil data dokter lama untuk cek user_id sebelumnya
+            $dokterLama = $pdo->prepare("SELECT * FROM dokter WHERE id=?");
+            $dokterLama->execute([$editId]);
+            $dokterLama = $dokterLama->fetch();
+
+            $userId = $dokterLama['user_id'] ?? null;
+
+            if ($emailDokter !== '') {
+                if ($userId) {
+                    // Update akun yang sudah ada
+                    $upd = "UPDATE users SET name=?, email=?, role='dokter'";
+                    $params = [$nama, $emailDokter];
+                    if ($passwordBaru !== '') {
+                        $upd .= ", password=?";
+                        $params[] = password_hash($passwordBaru, PASSWORD_BCRYPT);
+                    }
+                    $upd .= " WHERE id=?";
+                    $params[] = $userId;
+                    $pdo->prepare($upd)->execute($params);
+                } else {
+                    // Buat akun baru
+                    $cekEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                    $cekEmail->execute([$emailDokter]);
+                    $existingUser = $cekEmail->fetch();
+                    if ($existingUser) {
+                        $pdo->prepare("UPDATE users SET role='dokter' WHERE id=?")->execute([$existingUser['id']]);
+                        $userId = $existingUser['id'];
+                    } else {
+                        $pw = $passwordBaru !== '' ? $passwordBaru : 'dokter123';
+                        $hash = password_hash($pw, PASSWORD_BCRYPT);
+                        $ins = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'dokter')");
+                        $ins->execute([$nama, $emailDokter, $hash]);
+                        $userId = $pdo->lastInsertId();
+                    }
+                }
+            }
+
+            $stmt = $pdo->prepare("UPDATE dokter SET nama=?, spesialisasi=?, user_id=?, email=? WHERE id=?");
+            $stmt->execute([$nama, $spesialisasi, $userId ?: null, $emailDokter ?: null, $editId]);
             $message = 'success|Data dokter berhasil diupdate.';
         }
     }
 
     if ($action === 'hapus' && $id) {
+        // Kembalikan role user jika ada akun terhubung
+        $dokterHapus = $pdo->prepare("SELECT user_id FROM dokter WHERE id=?");
+        $dokterHapus->execute([$id]);
+        $dokterHapus = $dokterHapus->fetch();
+        if ($dokterHapus && $dokterHapus['user_id']) {
+            $pdo->prepare("UPDATE users SET role='user' WHERE id=?")->execute([$dokterHapus['user_id']]);
+        }
         $pdo->prepare("DELETE FROM dokter WHERE id = ?")->execute([$id]);
         $message = 'success|Dokter berhasil dihapus.';
     }
 
-    $dokters = $pdo->query("SELECT * FROM dokter ORDER BY nama ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $dokters = $pdo->query("SELECT d.*, u.email AS akun_email FROM dokter d LEFT JOIN users u ON u.id = d.user_id ORDER BY d.nama ASC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // ════════════════════════════════════════════
@@ -219,47 +288,12 @@ if ($page === 'antrean') {
     $allDokterAntrean = $pdo->query("SELECT * FROM dokter ORDER BY nama ASC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// ════════════════════════════════════════════
-// PAGE: INBOX CHAT
-// ════════════════════════════════════════════
-$chatUserId   = $_GET['chat_user'] ?? null;
-$chatUserName = '';
-
+// Catatan: Inbox Chat sudah tidak lagi ditangani dari sisi admin.
+// Fitur chat sepenuhnya dipindah & ditangani dari dashboard dokter.
 if ($page === 'chat') {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply']) && $chatUserId) {
-        $reply = trim($_POST['reply']);
-        if ($reply !== '') {
-            $stmt = $pdo->prepare("INSERT INTO konsultasi_chat (user_id, pengirim, pesan, created_at) VALUES (?, 'admin', ?, NOW())");
-            $stmt->execute([$chatUserId, $reply]);
-        }
-        header("Location: dashboard_admin.php?page=chat&chat_user=$chatUserId");
-        exit;
-    }
-
-    $chatUsers = $pdo->query("
-        SELECT u.id, u.name,
-               MAX(c.created_at) as last_msg,
-               SUM(CASE WHEN c.pengirim='user' AND c.dibaca=0 THEN 1 ELSE 0 END) as unread
-        FROM konsultasi_chat c
-        JOIN users u ON u.id = c.user_id
-        GROUP BY u.id, u.name
-        ORDER BY last_msg DESC
-    ")->fetchAll(PDO::FETCH_ASSOC);
-
-    if ($chatUserId) {
-        $su = $pdo->prepare("SELECT name FROM users WHERE id = ?");
-        $su->execute([$chatUserId]);
-        $chatUserName = $su->fetchColumn();
-
-        $stmtChat = $pdo->prepare("SELECT * FROM konsultasi_chat WHERE user_id = ? ORDER BY created_at ASC");
-        $stmtChat->execute([$chatUserId]);
-        $chatMessages = $stmtChat->fetchAll(PDO::FETCH_ASSOC);
-
-        $pdo->prepare("UPDATE konsultasi_chat SET dibaca=1 WHERE user_id=? AND pengirim='user'")->execute([$chatUserId]);
-    }
+    header('Location: dashboard_admin.php?page=dokter');
+    exit;
 }
-
-$totalUnread = $pdo->query("SELECT COUNT(*) FROM konsultasi_chat WHERE pengirim='user' AND dibaca=0")->fetchColumn();
 
 // Helper nama hari Indonesia
 function namaHari($tanggal) {
@@ -402,14 +436,6 @@ function namaBulan($tanggal) {
                 Antrean Pasien
             </a>
 
-            <div class="nav-section-label" style="margin-top:8px">Layanan</div>
-
-            <a href="dashboard_admin.php?page=chat" class="nav-link-item <?= $page === 'chat' ? 'active' : '' ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                Inbox Chat
-                <?php if ($totalUnread > 0): ?><span class="badge-notif"><?= $totalUnread ?></span><?php endif; ?>
-            </a>
-
         </nav>
 
         <div class="sidebar-footer">
@@ -450,15 +476,22 @@ function namaBulan($tanggal) {
             <div class="p-3">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead><tr><th>#</th><th>Nama Dokter</th><th>Spesialisasi</th><th class="text-center">Aksi</th></tr></thead>
+                        <thead><tr><th>#</th><th>Nama Dokter</th><th>Spesialisasi</th><th>Akun Login</th><th class="text-center">Aksi</th></tr></thead>
                         <tbody>
                         <?php if (empty($dokters)): ?>
-                            <tr><td colspan="4" class="text-center text-muted py-4">Belum ada data dokter.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4">Belum ada data dokter.</td></tr>
                         <?php else: foreach ($dokters as $i => $d): ?>
                             <tr>
                                 <td><?= $i + 1 ?></td>
                                 <td><strong><?= htmlspecialchars($d['nama']) ?></strong></td>
                                 <td><span class="badge bg-info text-dark"><?= htmlspecialchars($d['spesialisasi']) ?></span></td>
+                                <td>
+                                    <?php if (!empty($d['akun_email'])): ?>
+                                        <span class="badge bg-success" style="font-size:.75rem;"><i class="bi bi-check-circle me-1"></i><?= htmlspecialchars($d['akun_email']) ?></span>
+                                    <?php else: ?>
+                                        <span class="badge bg-secondary" style="font-size:.75rem;">Belum ada akun</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-warning me-1" onclick="openEditDokter(<?= htmlspecialchars(json_encode($d)) ?>)">
                                         <i class="bi bi-pencil"></i>
@@ -482,10 +515,14 @@ function namaBulan($tanggal) {
                 <div class="modal-content">
                     <form method="POST" action="dashboard_admin.php?page=dokter">
                         <input type="hidden" name="form_action" value="tambah">
-                        <div class="modal-header"><h5 class="modal-title">Tambah Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                        <div class="modal-header"><h5 class="modal-title">➕ Tambah Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                         <div class="modal-body">
-                            <div class="mb-3"><label class="form-label">Nama Dokter</label><input name="nama" class="form-control" required></div>
-                            <div class="mb-3"><label class="form-label">Spesialisasi</label><input name="spesialisasi" class="form-control" required></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Nama Dokter</label><input name="nama" class="form-control" placeholder="dr. Nama Lengkap" required></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Spesialisasi</label><input name="spesialisasi" class="form-control" placeholder="Umum, Gigi, Anak, dll" required></div>
+                            <hr>
+                            <div class="mb-1 text-muted" style="font-size:.8rem;"><i class="bi bi-person-badge me-1"></i>Akun Login Dokter <span class="text-secondary">(opsional)</span></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Email Login</label><input type="email" name="email_dokter" class="form-control" placeholder="dokter@meditrack.com"></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Password</label><input type="password" name="password_dokter" class="form-control" placeholder="Kosongkan = default 'dokter123'"></div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -503,10 +540,14 @@ function namaBulan($tanggal) {
                     <form method="POST" action="dashboard_admin.php?page=dokter">
                         <input type="hidden" name="form_action" value="edit">
                         <input type="hidden" name="edit_id" id="ed_id">
-                        <div class="modal-header"><h5 class="modal-title">Edit Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                        <div class="modal-header"><h5 class="modal-title">✏️ Edit Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                         <div class="modal-body">
-                            <div class="mb-3"><label class="form-label">Nama Dokter</label><input name="nama" id="ed_nama" class="form-control" required></div>
-                            <div class="mb-3"><label class="form-label">Spesialisasi</label><input name="spesialisasi" id="ed_spesialisasi" class="form-control" required></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Nama Dokter</label><input name="nama" id="ed_nama" class="form-control" required></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Spesialisasi</label><input name="spesialisasi" id="ed_spesialisasi" class="form-control" required></div>
+                            <hr>
+                            <div class="mb-1 text-muted" style="font-size:.8rem;"><i class="bi bi-person-badge me-1"></i>Akun Login Dokter</div>
+                            <div class="mb-3"><label class="form-label fw-bold">Email Login</label><input type="email" name="email_dokter" id="ed_email_dokter" class="form-control"></div>
+                            <div class="mb-3"><label class="form-label fw-bold">Password Baru</label><input type="password" name="password_dokter" class="form-control" placeholder="Kosongkan jika tidak diubah"></div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -898,73 +939,6 @@ function namaBulan($tanggal) {
             </div>
         <?php endforeach; endif; ?>
 
-    <?php elseif ($page === 'chat'): ?>
-        <div class="topbar">
-            <div>
-                <div class="topbar-title">💬 <span>Inbox Konsultasi Online</span></div>
-                <div class="topbar-sub">Balas pesan dari pasien yang konsultasi online</div>
-            </div>
-        </div>
-
-        <div class="row g-0 card-custom" style="overflow:hidden;min-height:520px;">
-            <div class="col-md-4" style="border-right:1px solid #e2e8f0;">
-                <div style="padding:14px 16px;font-weight:700;font-size:.85rem;color:#64748b;border-bottom:1px solid #f1f5f9;background:#f8fafc;letter-spacing:.05em;">PERCAKAPAN</div>
-                <?php if (empty($chatUsers)): ?>
-                <div class="text-center text-muted p-4" style="font-size:.88rem;"><div style="font-size:2rem;margin-bottom:8px;">💬</div>Belum ada pesan masuk</div>
-                <?php else: foreach ($chatUsers as $cu): ?>
-                <a href="dashboard_admin.php?page=chat&chat_user=<?= $cu['id'] ?>" class="chat-list-item text-decoration-none <?= ($chatUserId == $cu['id']) ? 'active' : '' ?>">
-                    <div class="chat-avatar"><?= strtoupper(substr($cu['name'], 0, 1)) ?></div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;color:#0f172a;font-size:.9rem;"><?= htmlspecialchars($cu['name']) ?></div>
-                        <div style="font-size:.75rem;color:#94a3b8;"><?= date('d M H:i', strtotime($cu['last_msg'])) ?></div>
-                    </div>
-                    <?php if ($cu['unread'] > 0): ?><span class="badge-notif"><?= $cu['unread'] ?></span><?php endif; ?>
-                </a>
-                <?php endforeach; endif; ?>
-            </div>
-
-            <div class="col-md-8 d-flex flex-column">
-                <?php if ($chatUserId && $chatUserName): ?>
-                <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;background:#f8fafc;">
-                    <div class="chat-avatar" style="width:36px;height:36px;font-size:.85rem;"><?= strtoupper(substr($chatUserName, 0, 1)) ?></div>
-                    <div><div style="font-weight:700;color:#0f172a;"><?= htmlspecialchars($chatUserName) ?></div><div style="font-size:.72rem;color:#22c55e;">● Konsultasi Online</div></div>
-                </div>
-                <div class="chat-box flex-grow-1" id="chatBox">
-                    <?php if (empty($chatMessages)): ?>
-                    <div style="text-align:center;margin:auto;color:#94a3b8;font-size:.88rem;">Belum ada pesan</div>
-                    <?php else: foreach ($chatMessages as $cm): ?>
-                        <?php if ($cm['pengirim'] === 'user'): ?>
-                        <div style="display:flex;align-items:flex-end;gap:8px;">
-                            <div class="chat-avatar" style="width:30px;height:30px;font-size:.75rem;flex-shrink:0;"><?= strtoupper(substr($chatUserName, 0, 1)) ?></div>
-                            <div style="max-width:72%;background:white;border:1px solid #e2e8f0;border-radius:18px 18px 18px 4px;padding:10px 14px;font-size:.875rem;color:#0f172a;">
-                                <?= nl2br(htmlspecialchars($cm['pesan'])) ?>
-                                <div style="font-size:.68rem;color:#94a3b8;margin-top:4px;"><?= date('H:i', strtotime($cm['created_at'])) ?></div>
-                            </div>
-                        </div>
-                        <?php else: ?>
-                        <div style="display:flex;justify-content:flex-end;">
-                            <div style="max-width:72%;background:linear-gradient(135deg,#38bdf8,#0284c7);color:white;border-radius:18px 18px 4px 18px;padding:10px 14px;font-size:.875rem;">
-                                <?= nl2br(htmlspecialchars($cm['pesan'])) ?>
-                                <div style="font-size:.68rem;opacity:.75;margin-top:4px;text-align:right;"><?= date('H:i', strtotime($cm['created_at'])) ?> · Admin</div>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                    <?php endforeach; endif; ?>
-                </div>
-                <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;">
-                    <form method="POST" action="dashboard_admin.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
-                        <textarea name="reply" rows="2" style="flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:.875rem;resize:none;outline:none;font-family:inherit;" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
-                        <button type="submit" style="width:42px;height:42px;border-radius:50%;background:#0ea5e9;border:none;color:white;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>
-                    </form>
-                </div>
-                <?php else: ?>
-                <div style="display:flex;align-items:center;justify-content:center;flex:1;color:#94a3b8;flex-direction:column;gap:10px;">
-                    <div style="font-size:3rem;">💬</div><div style="font-size:.9rem;">Pilih percakapan untuk membalas</div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
     <?php endif; ?>
 
     </main>
@@ -976,6 +950,7 @@ function openEditDokter(data) {
     document.getElementById('ed_id').value = data.id;
     document.getElementById('ed_nama').value = data.nama;
     document.getElementById('ed_spesialisasi').value = data.spesialisasi;
+    document.getElementById('ed_email_dokter').value = data.email || '';
     new bootstrap.Modal(document.getElementById('modalEditDokter')).show();
 }
 function openEditJadwal(data) {
@@ -993,11 +968,6 @@ function isiNamaPasien() {
     const opt = sel.options[sel.selectedIndex];
     document.getElementById('namaPasienHidden').value = opt.dataset.nama || '';
 }
-const box = document.getElementById('chatBox');
-if (box) box.scrollTop = box.scrollHeight;
-<?php if ($page === 'chat' && $chatUserId): ?>
-setTimeout(() => { location.reload(); }, 6000);
-<?php endif; ?>
 </script>
 </body>
 </html>
