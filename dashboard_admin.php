@@ -162,6 +162,64 @@ if ($page === 'rekam') {
 }
 
 // ════════════════════════════════════════════
+// PAGE: ANTREAN PASIEN (dikelompokkan per dokter & tanggal)
+// ════════════════════════════════════════════
+if ($page === 'antrean') {
+    $filterDokter  = $_GET['filter_dokter']  ?? '';
+    $filterTanggal = $_GET['filter_tanggal'] ?? '';
+    $filterStatus  = $_GET['filter_status']  ?? '';
+
+    $sqlAntrean = "
+        SELECT a.id, a.nomor_antrean, a.status, a.created_at,
+               u.name AS nama_pasien, u.email AS email_pasien,
+               j.tanggal, j.jam_mulai, j.jam_selesai,
+               d.id AS dokter_id, d.nama AS nama_dokter, d.spesialisasi
+        FROM antrean a
+        JOIN users u         ON u.id = a.user_id
+        JOIN jadwal_dokter j ON j.id = a.jadwal_id
+        JOIN dokter d        ON d.id = j.dokter_id
+        WHERE 1=1
+    ";
+    $paramsAntrean = [];
+
+    if ($filterDokter !== '') {
+        $sqlAntrean      .= " AND d.id = ?";
+        $paramsAntrean[]  = $filterDokter;
+    }
+    if ($filterTanggal !== '') {
+        $sqlAntrean      .= " AND j.tanggal = ?";
+        $paramsAntrean[]  = $filterTanggal;
+    }
+    if ($filterStatus !== '') {
+        $sqlAntrean      .= " AND a.status = ?";
+        $paramsAntrean[]  = $filterStatus;
+    }
+
+    $sqlAntrean .= " ORDER BY d.nama ASC, j.tanggal ASC, j.jam_mulai ASC, a.nomor_antrean ASC";
+
+    $stmtAntrean = $pdo->prepare($sqlAntrean);
+    $stmtAntrean->execute($paramsAntrean);
+    $semuaAntrean = $stmtAntrean->fetchAll(PDO::FETCH_ASSOC);
+
+    // Kelompokkan: nama dokter -> tanggal -> list antrean
+    $antreanPerDokter = [];
+    foreach ($semuaAntrean as $a) {
+        $namaDokter = $a['nama_dokter'];
+        $tgl        = $a['tanggal'];
+        if (!isset($antreanPerDokter[$namaDokter])) {
+            $antreanPerDokter[$namaDokter] = [
+                'spesialisasi' => $a['spesialisasi'],
+                'per_tanggal'  => [],
+            ];
+        }
+        $antreanPerDokter[$namaDokter]['per_tanggal'][$tgl][] = $a;
+    }
+
+    // Dropdown daftar dokter untuk filter
+    $allDokterAntrean = $pdo->query("SELECT * FROM dokter ORDER BY nama ASC")->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ════════════════════════════════════════════
 // PAGE: INBOX CHAT
 // ════════════════════════════════════════════
 $chatUserId   = $_GET['chat_user'] ?? null;
@@ -339,6 +397,11 @@ function namaBulan($tanggal) {
                 Rekam Medis
             </a>
 
+            <a href="dashboard_admin.php?page=antrean" class="nav-link-item <?= $page === 'antrean' ? 'active' : '' ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                Antrean Pasien
+            </a>
+
             <div class="nav-section-label" style="margin-top:8px">Layanan</div>
 
             <a href="dashboard_admin.php?page=chat" class="nav-link-item <?= $page === 'chat' ? 'active' : '' ?>">
@@ -346,7 +409,6 @@ function namaBulan($tanggal) {
                 Inbox Chat
                 <?php if ($totalUnread > 0): ?><span class="badge-notif"><?= $totalUnread ?></span><?php endif; ?>
             </a>
-
 
         </nav>
 
@@ -717,6 +779,124 @@ function namaBulan($tanggal) {
                 </div>
             </div>
         </div>
+
+    <?php elseif ($page === 'antrean'): ?>
+        <div class="topbar">
+            <div>
+                <div class="topbar-title">🎟️ <span>Antrean Pasien</span></div>
+                <div class="topbar-sub">Daftar antrean yang sudah diambil pasien, dikelompokkan per dokter &amp; tanggal</div>
+            </div>
+            <span class="topbar-badge"><?= count($semuaAntrean) ?> Antrean</span>
+        </div>
+
+        <!-- Filter -->
+        <form method="GET" class="card-custom mb-4 p-3 d-flex gap-2 flex-wrap align-items-end">
+            <input type="hidden" name="page" value="antrean">
+            <div>
+                <label class="form-label fw-bold" style="font-size:.78rem;">Dokter</label>
+                <select name="filter_dokter" class="form-select" style="min-width:200px;">
+                    <option value="">— Semua Dokter —</option>
+                    <?php foreach ($allDokterAntrean as $d): ?>
+                    <option value="<?= $d['id'] ?>" <?= ($filterDokter == $d['id']) ? 'selected' : '' ?>><?= htmlspecialchars($d['nama']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label class="form-label fw-bold" style="font-size:.78rem;">Tanggal</label>
+                <input type="date" name="filter_tanggal" class="form-control" value="<?= htmlspecialchars($filterTanggal) ?>">
+            </div>
+            <div>
+                <label class="form-label fw-bold" style="font-size:.78rem;">Status</label>
+                <select name="filter_status" class="form-select">
+                    <option value="">— Semua Status —</option>
+                    <option value="menunggu" <?= $filterStatus === 'menunggu' ? 'selected' : '' ?>>Menunggu</option>
+                    <option value="dikonfirmasi" <?= $filterStatus === 'dikonfirmasi' ? 'selected' : '' ?>>Dikonfirmasi</option>
+                    <option value="selesai" <?= $filterStatus === 'selesai' ? 'selected' : '' ?>>Selesai</option>
+                    <option value="batal" <?= $filterStatus === 'batal' ? 'selected' : '' ?>>Batal</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i>Filter</button>
+                <a href="dashboard_admin.php?page=antrean" class="btn btn-outline-secondary" style="border-radius:11px;">Reset</a>
+            </div>
+        </form>
+
+        <?php if (empty($antreanPerDokter)): ?>
+            <div class="card-custom p-5 text-center text-muted">
+                Belum ada antrean yang diambil pasien<?= ($filterDokter || $filterTanggal || $filterStatus) ? ' untuk filter ini.' : '.' ?>
+            </div>
+        <?php else: foreach ($antreanPerDokter as $namaDokter => $dataDokter): ?>
+            <div class="card-custom mb-4">
+                <div class="card-header-custom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 fw-bold">👨‍⚕️ dr. <?= htmlspecialchars($namaDokter) ?></h5>
+                        <div class="topbar-sub mb-0"><?= htmlspecialchars($dataDokter['spesialisasi']) ?></div>
+                    </div>
+                    <span class="badge-custom">
+                        <?= array_sum(array_map('count', $dataDokter['per_tanggal'])) ?> Antrean
+                    </span>
+                </div>
+                <div class="p-3">
+                    <?php
+                    $tanggalList = array_keys($dataDokter['per_tanggal']);
+                    sort($tanggalList);
+                    foreach ($tanggalList as $tgl):
+                        $listAntrean = $dataDokter['per_tanggal'][$tgl];
+                        $isToday = ($tgl === date('Y-m-d'));
+                    ?>
+                    <div class="jadwal-day-block">
+                        <div class="jadwal-day-header">
+                            <span class="dot"></span>
+                            <strong style="font-size:.88rem;color:<?= $isToday ? '#0369a1' : '#0f172a' ?>;">
+                                <?= $isToday ? '📌 Hari ini, ' : '' ?><?= namaHari($tgl) ?>, <?= date('d', strtotime($tgl)) ?> <?= namaBulan($tgl) ?> <?= date('Y', strtotime($tgl)) ?>
+                            </strong>
+                            <span class="badge bg-light text-dark ms-auto" style="font-weight:600;"><?= count($listAntrean) ?> pasien</span>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>No. Antrean</th>
+                                        <th>Nama Pasien</th>
+                                        <th>Email</th>
+                                        <th>Jam Praktik</th>
+                                        <th>Status</th>
+                                        <th>Diambil Pada</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($listAntrean as $a):
+                                    $statusBadge = [
+                                        'menunggu'     => 'bg-warning text-dark',
+                                        'dikonfirmasi' => 'bg-success',
+                                        'selesai'      => 'bg-primary',
+                                        'batal'        => 'bg-danger',
+                                    ][$a['status']] ?? 'bg-secondary';
+                                    $statusLabel = [
+                                        'menunggu'     => '⏳ Menunggu',
+                                        'dikonfirmasi' => '✅ Dikonfirmasi',
+                                        'selesai'      => '🏁 Selesai',
+                                        'batal'        => '✖ Batal',
+                                    ][$a['status']] ?? ucfirst($a['status']);
+                                ?>
+                                    <tr>
+                                        <td><span class="badge bg-info text-dark">#<?= $a['nomor_antrean'] ?></span></td>
+                                        <td><strong><?= htmlspecialchars($a['nama_pasien']) ?></strong></td>
+                                        <td class="text-muted" style="font-size:.85rem;"><?= htmlspecialchars($a['email_pasien']) ?></td>
+                                        <td><?= substr($a['jam_mulai'],0,5) ?>–<?= substr($a['jam_selesai'],0,5) ?></td>
+                                        <td><span class="badge <?= $statusBadge ?>"><?= $statusLabel ?></span></td>
+                                        <td style="font-size:.85rem;color:#64748b;"><?= date('d M Y, H:i', strtotime($a['created_at'])) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endforeach; endif; ?>
 
     <?php elseif ($page === 'chat'): ?>
         <div class="topbar">
