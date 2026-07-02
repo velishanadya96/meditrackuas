@@ -1,63 +1,27 @@
 <?php
 // pages/chat.php — Chat Dokter (sisi pasien)
-
-// ── Pastikan tabel pendukung chat & pembayaran sudah ada ─────────────────────
-// (Sebelumnya belum ada auto-create seperti di antrean.php, jadi kalau tabel ini
-// belum pernah dibuat manual di database, query di bawah akan gagal dan halaman
-// chat berhenti render tanpa pesan error apa pun -- itu sebabnya kartu bayar/chat
-// tidak pernah muncul setelah dokter dipilih.)
-try {
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS pembayaran_chat (
-            id         INT AUTO_INCREMENT PRIMARY KEY,
-            user_id    INT NOT NULL,
-            dokter_id  INT NOT NULL,
-            nominal    INT NOT NULL DEFAULT 0,
-            status     ENUM('pending','lunas') DEFAULT 'pending',
-            created_at DATETIME DEFAULT NOW(),
-            UNIQUE KEY uniq_user_dokter (user_id, dokter_id)
-        )
-    ");
-} catch (Exception $e) { /* tabel sudah ada, lanjut */ }
-
-try {
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS konsultasi_chat (
-            id            INT AUTO_INCREMENT PRIMARY KEY,
-            user_id       INT NOT NULL,
-            dokter_id     INT NOT NULL,
-            pengirim      ENUM('user','dokter','admin') NOT NULL,
-            pesan         TEXT NOT NULL,
-            dibaca        TINYINT(1) DEFAULT 0,
-            dibaca_dokter TINYINT(1) DEFAULT 0,
-            created_at    DATETIME DEFAULT NOW()
-        )
-    ");
-} catch (Exception $e) { /* tabel sudah ada, lanjut */ }
-
 $chatAlert = '';
-$selected_dokter_id = isset($_GET['dokter_id']) ? (int)$_GET['dokter_id'] : 0;
 
 // Ambil list semua dokter dan spesialisasinya untuk ditaruh di dropdown/list
 $stmtAllDokter = $db->query("SELECT id, nama, spesialisasi FROM dokter WHERE email IS NOT NULL AND email <> '' ORDER BY nama ASC");
 $listDokter = $stmtAllDokter->fetchAll();
+$validIds = array_map('intval', array_column($listDokter, 'id'));
 
-// Data dokter yang sedang dipilih (dipakai untuk header chat biar jelas lagi ngobrol sama siapa)
-$selectedDokter = null;
-if ($selected_dokter_id > 0) {
-    $validIds = array_column($listDokter, 'id');
-    if (!in_array($selected_dokter_id, $validIds)) {
-        $selected_dokter_id = 0;
-    } else {
-        foreach ($listDokter as $dok) {
-            if ($dok['id'] == $selected_dokter_id) { $selectedDokter = $dok; break; }
-        }
-    }
+// PENTING: jangan pakai "> 0" untuk mengecek dokter terpilih, karena id dokter
+// bisa saja 0 (mis. baris pertama di tabel dokter). Gunakan null sebagai penanda
+// "belum ada dokter dipilih", dan validasi terhadap daftar id yang benar-benar ada.
+$rawDokterId = $_GET['dokter_id'] ?? null;
+$selected_dokter_id = ($rawDokterId !== null && $rawDokterId !== '' && is_numeric($rawDokterId))
+    ? (int) $rawDokterId
+    : null;
+
+if ($selected_dokter_id !== null && !in_array($selected_dokter_id, $validIds, true)) {
+    $selected_dokter_id = null;
 }
 
 // Cek Status Pembayaran jika dokter sudah dipilih
 $isPaid = false;
-if ($selected_dokter_id > 0) {
+if ($selected_dokter_id !== null) {
     $stmtCekBayar = $db->prepare("SELECT status FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? AND status = 'lunas' LIMIT 1");
     $stmtCekBayar->execute([$userId, $selected_dokter_id]);
     if ($stmtCekBayar->fetch()) {
@@ -79,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bayar_chat'])) {
 // ── Handle kirim pesan ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $isPaid) {
     $pesan = trim($_POST['pesan'] ?? '');
-    if ($pesan !== '' && $selected_dokter_id > 0) {
+    if ($pesan !== '' && $selected_dokter_id !== null) {
         $stmtInsert = $db->prepare(
             "INSERT INTO konsultasi_chat (user_id, dokter_id, pengirim, pesan, dibaca, created_at)
              VALUES (?, ?, 'user', ?, 0, NOW())"
@@ -90,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $is
 }
 
 // ── Tandai pesan dokter sebagai sudah dibaca ──────────────────────────────────
-if ($selected_dokter_id > 0) {
+if ($selected_dokter_id !== null) {
     $db->prepare(
         "UPDATE konsultasi_chat SET dibaca = 1
          WHERE user_id = ? AND dokter_id = ? AND pengirim = 'dokter' AND dibaca = 0"
@@ -99,7 +63,7 @@ if ($selected_dokter_id > 0) {
 
 // ── Ambil semua pesan history berdasarkan dokter yang dipilih ─────────────────
 $messages = [];
-if ($selected_dokter_id > 0 && $isPaid) {
+if ($selected_dokter_id !== null && $isPaid) {
     $stmtMsg = $db->prepare(
         "SELECT * FROM konsultasi_chat WHERE user_id = ? AND dokter_id = ? ORDER BY created_at ASC"
     );
@@ -108,104 +72,110 @@ if ($selected_dokter_id > 0 && $isPaid) {
 }
 ?>
 
-<div class="chat-outer container mt-3">
-    <div class="card p-3 mb-3 shadow-sm" style="border-radius:15px;">
-        <label class="form-label fw-bold">Pilih Dokter & Spesialisasi Konsultasi:</label>
-        <form method="GET" action="/api/dashboarduser.php" id="formPilihDokter">
-            <input type="hidden" name="page" value="chat">
-            <select class="form-select" name="dokter_id" onchange="document.getElementById('formPilihDokter').submit();">
-                <option value="">-- Pilih Dokter --</option>
-                <?php foreach ($listDokter as $dok): ?>
-                    <option value="<?= htmlspecialchars($dok['id']) ?>" <?= (string)$selected_dokter_id === (string)$dok['id'] ? 'selected' : '' ?>>
-                        dr. <?= htmlspecialchars($dok['nama']) ?> (Spesialis <?= htmlspecialchars($dok['spesialisasi']) ?>)
-                        <?php // TODO hapus setelah bug ID kelar: ?> [ID: <?= htmlspecialchars(var_export($dok['id'], true)) ?>]
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </form>
+<style>
+    .chat-picker-card { background: white; border: none; border-radius: 18px; box-shadow: 0 8px 20px rgba(14,165,233,.12); padding: 20px 24px; margin-bottom: 18px; }
+    .chat-picker-card label { font-weight: 700; color: #0f172a; font-size: .92rem; margin-bottom: 8px; display: block; }
+    .chat-picker-card select { border-radius: 12px; border: 1.5px solid #dbeafe; padding: 10px 14px; font-size: .92rem; }
+    .chat-picker-card select:focus { border-color: #38bdf8; box-shadow: 0 0 0 .2rem rgba(56,189,248,.18); }
+
+    .chat-lock-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(14,165,233,.15); padding: 48px 32px; text-align: center; }
+    .chat-lock-icon { font-size: 3.2rem; margin-bottom: 8px; }
+    .chat-lock-price { color: #0ea5e9; font-weight: 800; font-size: 2rem; margin: 6px 0 22px; }
+    .chat-lock-btn { background: linear-gradient(135deg, #22c55e, #16a34a); border: none; color: white; font-weight: 700; padding: 13px 40px; border-radius: 14px; font-size: 1rem; box-shadow: 0 6px 18px rgba(34,197,94,.35); transition: .2s; }
+    .chat-lock-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(34,197,94,.45); color: white; }
+
+    .chat-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(14,165,233,.18); }
+    .chat-header { background: linear-gradient(135deg, #0ea5e9, #0369a1); padding: 18px 22px; display: flex; align-items: center; gap: 12px; }
+    .chat-header-avatar { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .chat-header-name { color: white; font-weight: 700; font-size: 1.02rem; }
+    .chat-header-sub { color: #e0f2fe; font-size: .78rem; }
+
+    .chat-body { height: 420px; overflow-y: auto; padding: 22px; background: #f0f9ff; display: flex; flex-direction: column; }
+    .chat-empty { margin: auto; text-align: center; color: #64748b; }
+    .chat-empty-icon { font-size: 2.4rem; margin-bottom: 10px; }
+
+    .bubble-row { display: flex; margin-bottom: 14px; }
+    .bubble-row.from-user { justify-content: flex-end; }
+    .bubble-row.from-dokter { justify-content: flex-start; }
+    .bubble { max-width: 72%; padding: 11px 16px; border-radius: 16px; font-size: .92rem; line-height: 1.45; box-shadow: 0 3px 10px rgba(15,23,42,.08); word-wrap: break-word; }
+    .bubble-row.from-user .bubble { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border-bottom-right-radius: 4px; }
+    .bubble-row.from-dokter .bubble { background: white; color: #0f172a; border-bottom-left-radius: 4px; }
+    .bubble-label { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: .65; margin-bottom: 3px; }
+
+    .chat-footer { background: white; padding: 14px 18px; border-top: 1px solid #e2e8f0; }
+    .chat-footer input.form-control { border-radius: 50px; border: 1.5px solid #dbeafe; padding: 11px 20px; font-size: .92rem; }
+    .chat-footer input.form-control:focus { border-color: #38bdf8; box-shadow: 0 0 0 .2rem rgba(56,189,248,.18); }
+    .chat-footer button { border-radius: 50px; width: 46px; height: 46px; padding: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none; flex-shrink: 0; }
+</style>
+
+<div class="chat-outer">
+    <div class="chat-picker-card">
+        <label>Pilih Dokter & Spesialisasi Konsultasi</label>
+        <select class="form-select" onchange="location = this.value;">
+            <option value="/api/dashboarduser.php?page=chat">-- Pilih Dokter --</option>
+            <?php foreach ($listDokter as $dok): ?>
+                <option value="/api/dashboarduser.php?page=chat&dokter_id=<?= (int)$dok['id'] ?>" <?= ($selected_dokter_id !== null && $selected_dokter_id === (int)$dok['id']) ? 'selected' : '' ?>>
+                    dr. <?= htmlspecialchars($dok['nama']) ?> (Spesialis <?= htmlspecialchars($dok['spesialisasi']) ?>)
+                </option>
+            <?php endforeach; ?>
+        </select>
     </div>
 
-    <?php if ($selected_dokter_id > 0): ?>
+    <?php if ($selected_dokter_id !== null): ?>
         <?php if (!$isPaid): ?>
-            <div class="card p-5 text-center shadow-lg" style="border-radius:20px; background: #fff;">
-                <div class="display-1 text-warning mb-3">💳</div>
-                <h4 class="fw-bold">Sesi Chat Dokter Terkunci</h4>
-                <p class="text-muted mb-1">
-                    Untuk memulai chat dengan
-                    <strong>dr. <?= htmlspecialchars($selectedDokter['nama'] ?? '') ?> (Spesialis <?= htmlspecialchars($selectedDokter['spesialisasi'] ?? '') ?>)</strong>,
-                    Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:
-                </p>
-                <h2 class="text-primary fw-extrabold mb-4">Rp 45.000</h2>
+            <div class="chat-lock-card">
+                <div class="chat-lock-icon">💳</div>
+                <h4 class="fw-bold mb-2">Sesi Chat Dokter Terkunci</h4>
+                <p class="text-muted mb-1" style="max-width:420px;margin-inline:auto;">Untuk memulai chat dengan dokter pilihan Anda, Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:</p>
+                <div class="chat-lock-price">Rp 45.000</div>
                 <form method="POST">
-                    <button type="submit" name="bayar_chat" class="btn btn-success btn-lg px-5 fw-bold" style="border-radius:12px;">
+                    <button type="submit" name="bayar_chat" class="chat-lock-btn">
                         Bayar Sekarang & Buka Chat
                     </button>
                 </form>
             </div>
         <?php else: ?>
-            <?php
-                $namaDokterAktif = $selectedDokter ? $selectedDokter['nama'] : 'Dokter';
-                $spesialisAktif  = $selectedDokter ? $selectedDokter['spesialisasi'] : '-';
-                $inisialDokter   = strtoupper(substr($namaDokterAktif, 0, 1));
-            ?>
-            <div class="chat-card" style="border-radius:18px; overflow:hidden; box-shadow:0 8px 24px rgba(14,165,233,.15); background:#fff;">
-                <!-- Header: identitas dokter yang sedang diajak chat -->
-                <div class="chat-header text-white p-3 d-flex align-items-center gap-3" style="background:linear-gradient(135deg,#0ea5e9,#0369a1);">
-                    <div style="width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0;">
-                        <?= htmlspecialchars($inisialDokter) ?>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="fw-bold" style="font-size:1rem;">dr. <?= htmlspecialchars($namaDokterAktif) ?></div>
-                        <div style="font-size:.78rem;opacity:.9;">Spesialis <?= htmlspecialchars($spesialisAktif) ?> · <span style="color:#bbf7d0;">● Online</span></div>
+            <div class="chat-card">
+                <div class="chat-header">
+                    <div class="chat-header-avatar">🩺</div>
+                    <div>
+                        <div class="chat-header-name">Konsultasi Dokter</div>
+                        <div class="chat-header-sub">Sesi aktif &middot; terhubung</div>
                     </div>
                 </div>
 
-                <div class="chat-body p-3" id="chatBody" style="height: 380px; overflow-y: auto; background: #eff6fb;">
+                <div class="chat-body" id="chatBody">
                     <?php if (empty($messages)): ?>
-                        <div class="text-center text-muted my-4">
-                            <div style="font-size:2.2rem;margin-bottom:8px;">💬</div>
-                            Sesi chat dengan dr. <?= htmlspecialchars($namaDokterAktif) ?> telah dibuka.<br>Silakan kirim keluhan Anda.
+                        <div class="chat-empty">
+                            <div class="chat-empty-icon">💬</div>
+                            <div>Sesi chat telah dibuka.<br>Silakan kirim keluhan Anda pada dokter.</div>
                         </div>
                     <?php else: ?>
-                        <?php $lastPengirim = null; ?>
-                        <?php foreach ($messages as $m):
-                            $isUser = $m['pengirim'] === 'user';
-                            $labelPengirim = $isUser ? htmlspecialchars($userName) : 'dr. ' . htmlspecialchars($namaDokterAktif);
-                            $waktu = isset($m['created_at']) ? date('d M, H:i', strtotime($m['created_at'])) : '';
-                        ?>
-                            <div class="d-flex mb-1 <?= $isUser ? 'justify-content-end' : 'justify-content-start' ?>">
-                                <div style="max-width: 75%;">
-                                    <?php if ($lastPengirim !== $m['pengirim']): ?>
-                                        <div style="font-size:.7rem;font-weight:700;color:#64748b;margin-bottom:3px;<?= $isUser ? 'text-align:right;' : '' ?>">
-                                            <?= $labelPengirim ?>
-                                        </div>
+                        <?php foreach ($messages as $m): ?>
+                            <div class="bubble-row <?= $m['pengirim'] === 'user' ? 'from-user' : 'from-dokter' ?>">
+                                <div class="bubble">
+                                    <?php if ($m['pengirim'] !== 'user'): ?>
+                                        <div class="bubble-label">Dokter</div>
                                     <?php endif; ?>
-                                    <div class="p-3 shadow-sm <?= $isUser ? 'text-white' : '' ?>"
-                                         style="border-radius:16px; <?= $isUser
-                                            ? 'background:linear-gradient(135deg,#0ea5e9,#0284c7); border-bottom-right-radius:4px;'
-                                            : 'background:#ffffff; color:#0f172a; border:1px solid #e2e8f0; border-bottom-left-radius:4px;' ?>">
-                                        <?= nl2br(htmlspecialchars($m['pesan'])) ?>
-                                    </div>
-                                    <div style="font-size:.65rem;color:#94a3b8;margin-top:2px;<?= $isUser ? 'text-align:right;' : '' ?>">
-                                        <?= $waktu ?>
-                                    </div>
+                                    <?= nl2br(htmlspecialchars($m['pesan'])) ?>
                                 </div>
                             </div>
-                            <?php $lastPengirim = $m['pengirim']; ?>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
 
-                <div class="chat-footer p-2 bg-light border-top">
+                <div class="chat-footer">
                     <form method="POST" class="d-flex gap-2">
-                        <input type="text" name="pesan" placeholder="Tulis pesan untuk dr. <?= htmlspecialchars($namaDokterAktif) ?>..." class="form-control" required autocomplete="off">
-                        <button type="submit" name="kirim_pesan" class="btn btn-primary" style="border-radius:10px;">Kirim</button>
+                        <input type="text" name="pesan" placeholder="Tulis pesan..." class="form-control" required autocomplete="off">
+                        <button type="submit" name="kirim_pesan" title="Kirim">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9-7-9-7v14zm0-7H3"/></svg>
+                        </button>
                     </form>
                 </div>
             </div>
         <?php endif; ?>
     <?php else: ?>
-        <div class="alert alert-info text-center">Silakan pilih spesialisasi dokter di atas untuk memulai konsultasi chat.</div>
+        <div class="alert alert-info text-center" style="border-radius:14px;">Silakan pilih spesialisasi dokter di atas untuk memulai konsultasi chat.</div>
     <?php endif; ?>
 </div>
 
