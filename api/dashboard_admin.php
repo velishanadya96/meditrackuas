@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/db.php';
 
 if (!isset($_SESSION['user_id'])) { header("Location: /api/login.php"); exit; }
-if ($_SESSION['user_role'] !== 'dokter') { header("Location: /api/logout.php"); exit; }
+if ($_SESSION['user_role'] !== 'dokter') { header("Location: /api/login.php"); exit; }
 
 $db      = getDB();
 $userId  = $_SESSION['user_id'];
@@ -107,15 +107,19 @@ if ($page === 'dashboard') {
     $stmtJadwalHariIni->execute([$dokterId]);
     $jadwal_list = $stmtJadwalHariIni->fetchAll(PDO::FETCH_ASSOC);
 
-    // Chat terbaru
+    // Chat terbaru (satu chat terakhir per pasien)
     $stmtChat = $db->prepare("
         SELECT c.*, u.name AS nama_pengirim
         FROM konsultasi_chat c
         JOIN users u ON u.id = c.user_id
-        JOIN antrean a ON a.user_id = c.user_id
-        JOIN jadwal_dokter j ON j.id = a.jadwal_id
-        WHERE j.dokter_id = ?
-        GROUP BY c.user_id
+        JOIN (
+            SELECT c2.user_id, MAX(c2.created_at) AS max_created
+            FROM konsultasi_chat c2
+            JOIN antrean a2 ON a2.user_id = c2.user_id
+            JOIN jadwal_dokter j2 ON j2.id = a2.jadwal_id
+            WHERE j2.dokter_id = ?
+            GROUP BY c2.user_id
+        ) latest ON latest.user_id = c.user_id AND latest.max_created = c.created_at
         ORDER BY c.created_at DESC
         LIMIT 5
     ");
