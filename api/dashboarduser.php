@@ -115,13 +115,13 @@ if ($page === 'chat' && $isAntreanAktif) {
         <nav class="sidebar-nav">
             <div class="nav-section-label">Menu Utama</div>
 
-            <a href="dashboarduser.php?page=dashboard"
+            <a href="/api/dashboarduser.php?page=dashboard"
                class="nav-link-item <?= ($page === 'dashboard') ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                 Dashboard
             </a>
 
-            <a href="dashboarduser.php?page=rekam"
+            <a href="/api/dashboarduser.php?page=rekam"
                class="nav-link-item <?= ($page === 'rekam') ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Rekam Medis
@@ -129,13 +129,13 @@ if ($page === 'chat' && $isAntreanAktif) {
 
             <div class="nav-section-label" style="margin-top:8px">Layanan</div>
 
-            <a href="dashboarduser.php?page=antrean"
+            <a href="/api/dashboarduser.php?page=antrean"
                class="nav-link-item <?= ($page === 'antrean') ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Jadwal & Antrean
             </a>
 
-            <a href="dashboarduser.php?page=chat"
+            <a href="/api/dashboarduser.php?page=chat"
                class="nav-link-item <?= ($page === 'chat') ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 Chat Dokter
@@ -148,7 +148,7 @@ if ($page === 'chat' && $isAntreanAktif) {
         <div class="sidebar-footer">
             <div class="sidebar-user-role">Login sebagai</div>
             <div class="sidebar-user-name"><?= htmlspecialchars($userName) ?></div>
-            <a href="logout.php" class="btn-logout-sidebar mt-2">
+            <a href="/api/logout.php" class="btn-logout-sidebar mt-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                 Keluar
             </a>
@@ -196,7 +196,7 @@ if ($page === 'chat' && $isAntreanAktif) {
                 <div class="antrean-card">
                     <h5 class="fw-bold mb-2">📋 Konsultasi Offline</h5>
                     <p style="opacity:.85;font-size:.9rem;margin-bottom:18px">Cek jadwal dokter dan ambil nomor antrean secara online.</p>
-                    <a href="dashboarduser.php?page=antrean" class="antrean-btn">
+                    <a href="/api/dashboarduser.php?page=antrean" class="antrean-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         Lihat Jadwal & Antrean
                     </a>
@@ -206,7 +206,7 @@ if ($page === 'chat' && $isAntreanAktif) {
                 <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:20px;padding:32px;color:white;box-shadow:0 10px 30px rgba(109,40,217,.3);height:100%;">
                     <h5 class="fw-bold mb-2">💬 Konsultasi Online</h5>
                     <p style="opacity:.85;font-size:.9rem;margin-bottom:18px">Chat langsung dengan dokter tanpa perlu datang ke klinik.</p>
-                    <a href="dashboarduser.php?page=chat" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.2);color:white;border-radius:14px;padding:12px 24px;font-weight:700;font-size:.95rem;text-decoration:none;transition:.2s;" onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">
+                    <a href="/api/dashboarduser.php?page=chat" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.2);color:white;border-radius:14px;padding:12px 24px;font-weight:700;font-size:.95rem;text-decoration:none;transition:.2s;" onmouseover="this.style.background='rgba(255,255,255,.3)'" onmouseout="this.style.background='rgba(255,255,255,.2)'">
                         💬 Chat Dokter
                         <?php if ($unreadCount > 0): ?>
                             <span style="background:#ef4444;border-radius:50px;padding:2px 8px;font-size:.75rem;"><?= $unreadCount ?> baru</span>
@@ -265,10 +265,10 @@ if ($page === 'chat' && $isAntreanAktif) {
         </div>
 
         <?php elseif ($page === 'antrean'): ?>
-        <?php include __DIR__ . '/pages/antrean.php'; ?>
+        <?php include __DIR__ . '/api/pages/antrean.php'; ?>
 
         <?php elseif ($page === 'chat'): ?>
-        <?php include __DIR__ . '/pages/chat.php'; ?>
+        <?php include __DIR__ . '/api/pages/chat.php'; ?>
 
         <?php endif; ?>
 

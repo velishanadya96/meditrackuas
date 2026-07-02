@@ -291,7 +291,7 @@ if ($page === 'antrean') {
 // Catatan: Inbox Chat sudah tidak lagi ditangani dari sisi admin.
 // Fitur chat sepenuhnya dipindah & ditangani dari dashboard dokter.
 if ($page === 'chat') {
-    header('Location: dashboard_admin.php?page=dokter');
+    header('Location: /api/dashboard_admin.php?page=dokter');
     exit;
 }
 
@@ -416,22 +416,22 @@ function namaBulan($tanggal) {
         <nav class="sidebar-nav">
             <div class="nav-section-label">Manajemen</div>
 
-            <a href="dashboard_admin.php?page=dokter" class="nav-link-item <?= $page === 'dokter' ? 'active' : '' ?>">
+            <a href="/api/dashboard_admin.php?page=dokter" class="nav-link-item <?= $page === 'dokter' ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 Kelola Dokter
             </a>
 
-            <a href="dashboard_admin.php?page=jadwal" class="nav-link-item <?= $page === 'jadwal' ? 'active' : '' ?>">
+            <a href="/api/dashboard_admin.php?page=jadwal" class="nav-link-item <?= $page === 'jadwal' ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Jadwal Dokter
             </a>
 
-            <a href="dashboard_admin.php?page=rekam" class="nav-link-item <?= $page === 'rekam' ? 'active' : '' ?>">
+            <a href="/api/dashboard_admin.php?page=rekam" class="nav-link-item <?= $page === 'rekam' ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Rekam Medis
             </a>
 
-            <a href="dashboard_admin.php?page=antrean" class="nav-link-item <?= $page === 'antrean' ? 'active' : '' ?>">
+            <a href="/api/dashboard_admin.php?page=antrean" class="nav-link-item <?= $page === 'antrean' ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 Antrean Pasien
             </a>
@@ -441,7 +441,7 @@ function namaBulan($tanggal) {
         <div class="sidebar-footer">
             <div class="sidebar-user-role">Login sebagai</div>
             <div class="sidebar-user-name"><?= htmlspecialchars($_SESSION['user_name']) ?></div>
-            <a href="logout.php" class="btn-logout-sidebar mt-2">
+            <a href="/api/logout.php" class="btn-logout-sidebar mt-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                 Keluar
             </a>
@@ -858,7 +858,7 @@ function namaBulan($tanggal) {
             </div>
             <div>
                 <button type="submit" class="btn btn-save"><i class="bi bi-funnel me-1"></i>Filter</button>
-                <a href="dashboard_admin.php?page=antrean" class="btn btn-outline-secondary" style="border-radius:11px;">Reset</a>
+                <a href="/api/dashboard_admin.php?page=antrean" class="btn btn-outline-secondary" style="border-radius:11px;">Reset</a>
             </div>
         </form>
 

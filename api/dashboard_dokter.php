@@ -18,7 +18,7 @@ if (!$dokterData) {
     die('<div style="font-family:sans-serif;text-align:center;padding:80px;color:#ef4444;">
         <h2>⚠️ Akun belum terhubung ke data dokter</h2>
         <p>Hubungi admin untuk menghubungkan akun Anda ke profil dokter.</p>
-        <a href="logout.php">Keluar</a>
+        <a href="/api/logout.php">Keluar</a>
     </div>');
 }
 
@@ -426,22 +426,22 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
   </div>
 
   <div class="nav-section">Menu Utama</div>
-  <a href="dashboard_dokter.php?page=dashboard" class="nav-link <?= $page==='dashboard'?'active':'' ?>">
+  <a href="/api/dashboard_dokter.php?page=dashboard" class="nav-link <?= $page==='dashboard'?'active':'' ?>">
     <i class="bi bi-grid-1x2-fill"></i> Dashboard
   </a>
-  <a href="dashboard_dokter.php?page=jadwal" class="nav-link <?= $page==='jadwal'?'active':'' ?>">
+  <a href="/api/dashboard_dokter.php?page=jadwal" class="nav-link <?= $page==='jadwal'?'active':'' ?>">
     <i class="bi bi-calendar3"></i> Jadwal Praktik
   </a>
-  <a href="dashboard_dokter.php?page=antrean" class="nav-link <?= $page==='antrean'?'active':'' ?>">
+  <a href="/api/dashboard_dokter.php?page=antrean" class="nav-link <?= $page==='antrean'?'active':'' ?>">
     <i class="bi bi-people-fill"></i> Antrean Pasien
   </a>
-  <a href="dashboard_dokter.php?page=chat" class="nav-link <?= $page==='chat'?'active':'' ?>">
+  <a href="/api/dashboard_dokter.php?page=chat" class="nav-link <?= $page==='chat'?'active':'' ?>">
     <i class="bi bi-chat-dots-fill"></i> Chat
     <?php if ($jml_chat_unread > 0): ?>
       <span class="badge-notif"><?= $jml_chat_unread ?></span>
     <?php endif; ?>
   </a>
-  <a href="dashboard_dokter.php?page=rekam" class="nav-link <?= $page==='rekam'?'active':'' ?>">
+  <a href="/api/dashboard_dokter.php?page=rekam" class="nav-link <?= $page==='rekam'?'active':'' ?>">
     <i class="bi bi-file-earmark-medical-fill"></i> Rekam Medis
   </a>
 
@@ -449,7 +449,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
     <div class="user-role">Login sebagai</div>
     <div class="user-name">dr. <?= htmlspecialchars($namaDokter) ?></div>
     <div class="user-role" style="margin-top:2px;"><?= htmlspecialchars($spesialis) ?></div>
-    <a href="logout.php" class="nav-link mt-2">
+    <a href="/api/logout.php" class="nav-link mt-2">
       <i class="bi bi-box-arrow-left"></i> Logout
     </a>
   </div>
@@ -543,7 +543,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <div class="card h-100">
           <div class="card-header">
             <span><i class="bi bi-calendar-check"></i>Jadwal Praktik Hari Ini</span>
-            <a href="dashboard_dokter.php?page=jadwal" class="btn-outline-custom btn">Lihat Semua</a>
+            <a href="/api/dashboard_dokter.php?page=jadwal" class="btn-outline-custom btn">Lihat Semua</a>
           </div>
           <div class="card-body p-0">
             <?php if (!empty($jadwal_list)): ?>
@@ -572,7 +572,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <div class="card h-100">
           <div class="card-header">
             <span><i class="bi bi-people"></i>Antrean Pasien Hari Ini</span>
-            <a href="dashboard_dokter.php?page=antrean" class="btn-outline-custom btn">Lihat Semua</a>
+            <a href="/api/dashboard_dokter.php?page=antrean" class="btn-outline-custom btn">Lihat Semua</a>
           </div>
           <div class="card-body p-0">
             <?php if (!empty($antrean_list)): ?>
@@ -590,7 +590,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
                         <td><span class="badge-status <?= $badge_a ?>"><?= ucfirst($a['status']) ?></span></td>
                         <td>
                           <?php if (!in_array($a['status'],['selesai','batal'])): ?>
-                            <a href="dashboard_dokter.php?page=antrean&action=selesai&antrean_id=<?= $a['id'] ?>"
+                            <a href="/api/dashboard_dokter.php?page=antrean&action=selesai&antrean_id=<?= $a['id'] ?>"
                                class="btn-primary-custom btn" onclick="return confirm('Tandai selesai?')">Selesai</a>
                           <?php endif; ?>
                         </td>
@@ -613,7 +613,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <div class="card h-100">
           <div class="card-header">
             <span><i class="bi bi-chat-dots"></i>Chat Terbaru</span>
-            <a href="dashboard_dokter.php?page=chat" class="btn-outline-custom btn">Buka Semua</a>
+            <a href="/api/dashboard_dokter.php?page=chat" class="btn-outline-custom btn">Buka Semua</a>
           </div>
           <div class="card-body py-1 px-3">
             <?php if (!empty($chat_list)): ?>
@@ -629,7 +629,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
                   </div>
                   <div class="d-flex flex-column align-items-end gap-1">
                     <span class="chat-time"><?= $waktu ?></span>
-                    <a href="dashboard_dokter.php?page=chat&chat_user=<?= $c['user_id'] ?>" class="btn-primary-custom btn" style="font-size:.72rem;padding:.25rem .6rem;">Buka</a>
+                    <a href="/api/dashboard_dokter.php?page=chat&chat_user=<?= $c['user_id'] ?>" class="btn-primary-custom btn" style="font-size:.72rem;padding:.25rem .6rem;">Buka</a>
                   </div>
                 </div>
               <?php endforeach; ?>
@@ -643,7 +643,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <div class="card h-100">
           <div class="card-header">
             <span><i class="bi bi-file-earmark-medical"></i>Rekam Medis Terbaru</span>
-            <a href="dashboard_dokter.php?page=rekam" class="btn-outline-custom btn">Lihat Semua</a>
+            <a href="/api/dashboard_dokter.php?page=rekam" class="btn-outline-custom btn">Lihat Semua</a>
           </div>
           <div class="card-body p-0">
             <?php if (!empty($rm_pending_list)): ?>
@@ -703,7 +703,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
             <span class="badge-status <?= $badge_a ?>"><?= ucfirst($a['status']) ?></span>
             <?php if (!$isSelesai && !$isBatal): ?>
             <div class="mt-2">
-              <a href="dashboard_dokter.php?page=antrean&action=selesai&antrean_id=<?= $a['id'] ?>" class="btn-primary-custom btn" style="font-size:.78rem;" onclick="return confirm('Tandai pasien ini selesai?')">🏁 Selesai</a>
+              <a href="/api/dashboard_dokter.php?page=antrean&action=selesai&antrean_id=<?= $a['id'] ?>" class="btn-primary-custom btn" style="font-size:.78rem;" onclick="return confirm('Tandai pasien ini selesai?')">🏁 Selesai</a>
             </div>
             <?php endif; ?>
           </div>
@@ -764,7 +764,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
     <div class="card mb-4">
       <div class="card-header"><span><i class="bi bi-pencil-square"></i>Catat Rekam Medis Baru</span></div>
       <div class="card-body">
-        <form method="POST" action="dashboard_dokter.php?page=rekam">
+        <form method="POST" action="/api/dashboard_dokter.php?page=rekam">
           <input type="hidden" name="form_rekam" value="1">
           <div class="row g-3">
             <div class="col-md-6">
@@ -837,7 +837,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <?php if (empty($chatUsers)): ?>
           <div class="empty-state"><i class="bi bi-chat-square d-block"></i><p>Belum ada pasien yang chat.</p></div>
         <?php else: foreach ($chatUsers as $cu): ?>
-          <a href="dashboard_dokter.php?page=chat&chat_user=<?= $cu['id'] ?>" class="chat-list-item <?= ($chatUserId==$cu['id'])?'active':'' ?>">
+          <a href="/api/dashboard_dokter.php?page=chat&chat_user=<?= $cu['id'] ?>" class="chat-list-item <?= ($chatUserId==$cu['id'])?'active':'' ?>">
             <div class="chat-avatar-sm"><?= strtoupper(substr($cu['name'],0,1)) ?></div>
             <div style="flex:1;min-width:0;">
               <div style="font-weight:600;color:#0f172a;font-size:.9rem;"><?= htmlspecialchars($cu['name']) ?></div>
@@ -879,7 +879,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
             <?php endforeach; endif; ?>
           </div>
           <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;">
-            <form method="POST" action="dashboard_dokter.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
+            <form method="POST" action="/api/dashboard_dokter.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
               <textarea name="reply" rows="2" style="flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:.875rem;resize:none;outline:none;font-family:inherit;" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
               <button type="submit" style="width:42px;height:42px;border-radius:50%;background:#0ea5e9;border:none;color:white;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>
             </form>

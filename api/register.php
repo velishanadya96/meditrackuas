@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php if ($success): ?>
                         <div class="alert alert-success">
                             <?= htmlspecialchars($success) ?>
-                            <a href="/login.php">Login sekarang</a>
+                            <a href="/api/login.php">Login sekarang</a>
                         </div>
                     <?php endif; ?>
 
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Daftar Sekarang
                         </button>
                         <p class="text-center mt-3 mb-0">
-                            Sudah punya akun? <a href="login.php">Login</a>
+                            Sudah punya akun? <a href="/api/login.php">Login</a>
                         </p>
                     </form>
 

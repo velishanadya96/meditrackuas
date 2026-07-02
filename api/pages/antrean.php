@@ -217,14 +217,14 @@ function labelBulan(string $tgl): string {
                     </div>
                     <div class="d-flex gap-2 mt-3">
                         <?php if ($ant['status'] === 'menunggu'): ?>
-                        <a href="dashboarduser.php?page=antrean&subaction=konfirmasi&antrean_id=<?= $ant['id'] ?>"
+                        <a href="/api/dashboarduser.php?page=antrean&subaction=konfirmasi&antrean_id=<?= $ant['id'] ?>"
                            class="btn btn-sm btn-success flex-fill"
                            style="border-radius:10px;font-weight:600;"
                            onclick="return confirm('Konfirmasi kehadiranmu?')">
                            ✅ Konfirmasi Hadir
                         </a>
                         <?php endif; ?>
-                        <a href="dashboarduser.php?page=antrean&subaction=batal&antrean_id=<?= $ant['id'] ?>"
+                        <a href="/api/dashboarduser.php?page=antrean&subaction=batal&antrean_id=<?= $ant['id'] ?>"
                            class="btn btn-sm btn-outline-danger <?= $ant['status']==='menunggu' ? '' : 'flex-fill' ?>"
                            style="border-radius:10px;font-weight:600;"
                            onclick="return confirm('Yakin mau batalkan antrean ini?')">
@@ -290,7 +290,7 @@ function labelBulan(string $tgl): string {
                                     <?php elseif ($penuh): ?>
                                         <span style="background:#fee2e2;color:#ef4444;font-size:.73rem;padding:5px 12px;border-radius:8px;font-weight:600;">Kuota habis</span>
                                     <?php else: ?>
-                                        <a href="dashboarduser.php?page=antrean&subaction=ambil&jadwal_id=<?= $j['id'] ?>"
+                                        <a href="/api/dashboarduser.php?page=antrean&subaction=ambil&jadwal_id=<?= $j['id'] ?>"
                                            onclick="return confirm('Ambil antrean ke dr. <?= htmlspecialchars(addslashes($j['nama_dokter'])) ?>?')"
                                            style="background:linear-gradient(135deg,#0ea5e9,#0369a1);color:white;font-size:.78rem;padding:6px 16px;border-radius:10px;font-weight:700;text-decoration:none;display:inline-block;">
                                            + Ambil Antrean

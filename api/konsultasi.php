@@ -142,7 +142,7 @@ $userName = $_SESSION['user_name'];
 
 <div class="topbar-right">
     <div class="user-chip">👤 <?= htmlspecialchars($userName) ?></div>
-    <a href="logout.php" class="btn-logout-top">Keluar</a>
+    <a href="/api/logout.php" class="btn-logout-top">Keluar</a>
 </div>
 
 <div class="konsultasi-wrapper">
@@ -155,7 +155,7 @@ $userName = $_SESSION['user_name'];
     <div class="row g-4">
         <!-- Online -->
         <div class="col-md-6">
-            <a href="dashboarduser.php?page=chat" class="card-konsul">
+            <a href="/api/dashboarduser.php?page=chat" class="card-konsul">
                 <div class="icon-circle icon-online">
                     💬
                 </div>
@@ -167,7 +167,7 @@ $userName = $_SESSION['user_name'];
 
         <!-- Offline -->
         <div class="col-md-6">
-            <a href="dashboarduser.php?page=antrean" class="card-konsul">
+            <a href="/api/dashboarduser.php?page=antrean" class="card-konsul">
                 <div class="icon-circle icon-offline">
                     🏥
                 </div>
@@ -179,7 +179,7 @@ $userName = $_SESSION['user_name'];
     </div>
 
     <div class="text-center mt-4">
-        <a href="dashboarduser.php" class="text-muted" style="font-size:.85rem; text-decoration:none;">
+        <a href="/api/dashboarduser.php" class="text-muted" style="font-size:.85rem; text-decoration:none;">
             Lewati → Langsung ke Dashboard
         </a>
     </div>

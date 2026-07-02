@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bayar_chat'])) {
                                VALUES (?, ?, 45000, 'lunas') 
                                ON DUPLICATE KEY UPDATE status = 'lunas'");
     $stmtBayar->execute([$userId, $selected_dokter_id]);
-    echo "<script>window.location.href='dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
+    echo "<script>window.location.href='/api/dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
     exit;
 }
 
@@ -71,9 +71,9 @@ if ($selected_dokter_id > 0 && $isPaid) {
     <div class="card p-3 mb-3 shadow-sm" style="border-radius:15px;">
         <label class="form-label fw-bold">Pilih Dokter & Spesialisasi Konsultasi:</label>
         <select class="form-select" onchange="location = this.value;">
-            <option value="dashboarduser.php?page=chat">-- Pilih Dokter --</option>
+            <option value="/api/dashboarduser.php?page=chat">-- Pilih Dokter --</option>
             <?php foreach ($listDokter as $dok): ?>
-                <option value="dashboarduser.php?page=chat&dokter_id=<?= $dok['id'] ?>" <?= $selected_dokter_id == $dok['id'] ? 'selected' : '' ?>>
+                <option value="/api/dashboarduser.php?page=chat&dokter_id=<?= $dok['id'] ?>" <?= $selected_dokter_id == $dok['id'] ? 'selected' : '' ?>>
                     dr. <?= htmlspecialchars($dok['nama']) ?> (Spesialis <?= htmlspecialchars($dok['spesialisasi']) ?>)
                 </option>
             <?php endforeach; ?>

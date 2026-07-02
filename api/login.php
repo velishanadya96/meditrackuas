@@ -228,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="divider">atau</div>
 
     <div class="link-register">
-        Belum punya akun? <a href="register.php">Daftar sekarang</a>
+        Belum punya akun? <a href="/api/register.php">Daftar sekarang</a>
     </div>
 </div>
 
