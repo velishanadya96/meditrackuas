@@ -24,16 +24,9 @@ if ($selected_dokter_id > 0) {
     }
 }
 
-// ── Handle Simulasi Bayar ──────────────────────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bayar_chat'])) {
-    // Insert/Update status ke lunas
-    $stmtBayar = $db->prepare("INSERT INTO pembayaran_chat (user_id, dokter_id, nominal, status) 
-                               VALUES (?, ?, 45000, 'lunas') 
-                               ON DUPLICATE KEY UPDATE status = 'lunas'");
-    $stmtBayar->execute([$userId, $selected_dokter_id]);
-    echo "<script>window.location.href='/api/dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
-    exit;
-}
+// ── Pembayaran sekarang ditangani oleh Midtrans Snap via api/payment.php
+// (lihat tombol "Bayar Sekarang" + script Snap.js di bawah)
+require_once __DIR__ . '/midtrans.php';
 
 // ── Handle kirim pesan ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $isPaid) {
@@ -87,11 +80,11 @@ if ($selected_dokter_id > 0 && $isPaid) {
                 <h4 class="fw-bold">Sesi Chat Dokter Terkunci</h4>
                 <p class="text-muted">Untuk memulai chat dengan dokter pilihan Anda, Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:</p>
                 <h2 class="text-primary fw-extrabold mb-4">Rp 45.000</h2>
-                <form method="POST">
-                    <button type="submit" name="bayar_chat" class="btn btn-success btn-lg px-5 fw-bold" style="border-radius:12px;">
-                        Bayar Sekarang & Buka Chat
-                    </button>
-                </form>
+                <button type="button" id="btnBayarMidtrans" data-dokter-id="<?= $selected_dokter_id ?>"
+                        class="btn btn-success btn-lg px-5 fw-bold" style="border-radius:12px;">
+                    Bayar Sekarang & Buka Chat
+                </button>
+                <div id="bayarStatus" class="mt-3 text-muted small"></div>
             </div>
         <?php else: ?>
             <div class="chat-card">
@@ -130,3 +123,55 @@ if ($selected_dokter_id > 0 && $isPaid) {
     const body = document.getElementById('chatBody');
     if (body) body.scrollTop = body.scrollHeight;
 </script>
+
+<?php if ($selected_dokter_id > 0 && !$isPaid): ?>
+<script src="<?= midtransSnapJsUrl() ?>" data-client-key="<?= htmlspecialchars(midtransClientKey()) ?>"></script>
+<script>
+document.getElementById('btnBayarMidtrans').addEventListener('click', function () {
+    const btn = this;
+    const statusEl = document.getElementById('bayarStatus');
+    btn.disabled = true;
+    statusEl.textContent = 'Menyiapkan pembayaran...';
+
+    fetch('/api/payment.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'dokter_id=' + btn.dataset.dokterId
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.ok) {
+            statusEl.textContent = 'Gagal: ' + (data.error || 'Terjadi kesalahan.');
+            btn.disabled = false;
+            return;
+        }
+        if (data.already_paid) {
+            window.location.reload();
+            return;
+        }
+        window.snap.pay(data.token, {
+            onSuccess: function () {
+                statusEl.textContent = 'Pembayaran berhasil! Membuka sesi chat...';
+                setTimeout(() => window.location.reload(), 1500);
+            },
+            onPending: function () {
+                statusEl.textContent = 'Menunggu pembayaran diselesaikan. Halaman akan otomatis diperbarui setelah pembayaran dikonfirmasi.';
+                btn.disabled = false;
+            },
+            onError: function () {
+                statusEl.textContent = 'Pembayaran gagal. Silakan coba lagi.';
+                btn.disabled = false;
+            },
+            onClose: function () {
+                statusEl.textContent = 'Kamu menutup popup sebelum menyelesaikan pembayaran.';
+                btn.disabled = false;
+            }
+        });
+    })
+    .catch(() => {
+        statusEl.textContent = 'Tidak bisa terhubung ke server pembayaran.';
+        btn.disabled = false;
+    });
+});
+</script>
+<?php endif; ?>
