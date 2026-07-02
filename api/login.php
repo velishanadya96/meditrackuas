@@ -1,10 +1,23 @@
 <?php
 ob_start();
 session_start();
+
+// Kalau baru aja logout, paksa bersih total dan JANGAN kena auto-restore dari db.php
+if (isset($_GET['loggedout'])) {
+    $_SESSION = [];
+    session_unset();
+    session_destroy();
+    setcookie('user_id', '', time() - 3600, '/');
+    setcookie('user_name', '', time() - 3600, '/');
+    setcookie('user_role', '', time() - 3600, '/');
+    unset($_COOKIE['user_id'], $_COOKIE['user_name'], $_COOKIE['user_role']);
+    session_start();
+}
+
 require_once __DIR__ . '/db.php';
 
 // Kalau sudah login, langsung redirect sesuai role
-if (isset($_SESSION['user_id'])) {
+if (!isset($_GET['loggedout']) && isset($_SESSION['user_id'])) {
     if ($_SESSION['user_role'] === 'admin') {
         header('Location: /api/dashboard_admin.php');
     } elseif ($_SESSION['user_role'] === 'dokter') {
