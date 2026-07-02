@@ -24,9 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->fetch()) {
             $error = 'Email sudah terdaftar. Silakan login.';
         } else {
+            // Email dengan domain @doktermeditrack.com otomatis dianggap calon dokter,
+            // tapi statusnya "pending" sampai diverifikasi admin.
+            $isCalonDokter = (bool) preg_match('/@doktermeditrack\.com$/i', $email);
+            $role = $isCalonDokter ? 'dokter_pending' : 'user';
+
             $hash = password_hash($password, PASSWORD_BCRYPT);
             $ins  = $db->prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
-            $ins->execute([$name, $email, $hash, 'user']);
+            $ins->execute([$name, $email, $hash, $role]);
 
             // Bersihin session/cookie lama biar gak auto-login ke akun sebelumnya
             $_SESSION = [];
@@ -37,7 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setcookie('user_role', '', time() - 3600, '/');
             unset($_COOKIE['user_id'], $_COOKIE['user_name'], $_COOKIE['user_role']);
 
-            header('Location: /api/login.php?loggedout=1');
+            $redirectParam = $isCalonDokter ? 'loggedout=1&pending=1' : 'loggedout=1';
+            header('Location: /api/login.php?' . $redirectParam);
             exit;
         }
     }

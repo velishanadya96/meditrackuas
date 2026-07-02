@@ -43,22 +43,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
-            $_SESSION['user_id']   = $user['id'];
-            $_SESSION['user_name'] = $user['name'];
-            $_SESSION['user_role'] = $user['role'];
-
-            setcookie('user_id', $user['id'], time() + (3600 * 24), '/'); // Berlaku 1 hari
-            setcookie('user_name', $user['name'], time() + (3600 * 24), '/');
-            setcookie('user_role', $user['role'], time() + (3600 * 24), '/');
-
-            if ($user['role'] === 'admin') {
-                header('Location: /api/dashboard_admin.php');
-            } elseif ($user['role'] === 'dokter') {
-                header('Location: /api/dashboard_dokter.php');
+            if ($user['role'] === 'dokter_pending') {
+                $error = 'Akun dokter kamu terdaftar dengan email @doktermeditrack.com dan sedang menunggu verifikasi dari admin. Silakan coba login lagi setelah diverifikasi.';
             } else {
-                header('Location: /api/konsultasi.php');
+                $_SESSION['user_id']   = $user['id'];
+                $_SESSION['user_name'] = $user['name'];
+                $_SESSION['user_role'] = $user['role'];
+
+                setcookie('user_id', $user['id'], time() + (3600 * 24), '/'); // Berlaku 1 hari
+                setcookie('user_name', $user['name'], time() + (3600 * 24), '/');
+                setcookie('user_role', $user['role'], time() + (3600 * 24), '/');
+
+                if ($user['role'] === 'admin') {
+                    header('Location: /api/dashboard_admin.php');
+                } elseif ($user['role'] === 'dokter') {
+                    header('Location: /api/dashboard_dokter.php');
+                } else {
+                    header('Location: /api/konsultasi.php');
+                }
+                exit;
             }
-            exit;
         } else {
             $error = 'Email atau password salah.';
         }
@@ -210,6 +214,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <?php if ($error): ?>
     <div class="alert-err">⚠️ <?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['pending'])): ?>
+    <div class="alert-err" style="background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;">
+        ℹ️ Registrasi berhasil! Email kamu terdeteksi sebagai akun dokter (@doktermeditrack.com) dan sedang menunggu verifikasi admin sebelum bisa login.
+    </div>
     <?php endif; ?>
 
     <form method="POST" action="/api/login.php">

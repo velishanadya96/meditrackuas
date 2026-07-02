@@ -14,7 +14,9 @@ if ($_SESSION['user_role'] !== 'admin') {
 $pdo      = getDB();
 $adminId  = $_SESSION['user_id'];
 $message  = '';
-$page     = $_GET['page'] ?? 'dokter'; // dokter | jadwal | rekam | chat
+$page     = $_GET['page'] ?? 'dokter'; // dokter | verifikasi | jadwal | rekam | chat
+
+$countPendingDokter = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='dokter_pending'")->fetchColumn();
 
 // ════════════════════════════════════════════
 // PAGE: KELOLA DOKTER (data master)
@@ -119,6 +121,44 @@ if ($page === 'dokter') {
     }
 
     $dokters = $pdo->query("SELECT d.*, u.email AS akun_email FROM dokter d LEFT JOIN users u ON u.id = d.user_id ORDER BY d.nama ASC")->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// ════════════════════════════════════════════
+// PAGE: VERIFIKASI DOKTER (registrasi mandiri via @doktermeditrack.com)
+// ════════════════════════════════════════════
+if ($page === 'verifikasi') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_action'])) {
+        $userId = (int) $_POST['user_id'];
+
+        if ($_POST['form_action'] === 'verifikasi') {
+            $spesialisasi = trim($_POST['spesialisasi'] ?? '');
+
+            $calon = $pdo->prepare("SELECT * FROM users WHERE id=? AND role='dokter_pending'");
+            $calon->execute([$userId]);
+            $calon = $calon->fetch();
+
+            if ($calon && $spesialisasi !== '') {
+                // Pastikan belum ada data dokter yang terhubung ke akun ini
+                $cekDokter = $pdo->prepare("SELECT id FROM dokter WHERE user_id=? LIMIT 1");
+                $cekDokter->execute([$userId]);
+
+                if (!$cekDokter->fetch()) {
+                    $pdo->prepare("INSERT INTO dokter (nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?)")
+                        ->execute([$calon['name'], $spesialisasi, $userId, $calon['email']]);
+                }
+                $pdo->prepare("UPDATE users SET role='dokter' WHERE id=?")->execute([$userId]);
+                $message = 'success|Akun dokter berhasil diverifikasi dan diaktifkan.';
+            } else {
+                $message = 'danger|Spesialisasi wajib diisi.';
+            }
+
+        } elseif ($_POST['form_action'] === 'tolak') {
+            $pdo->prepare("UPDATE users SET role='user' WHERE id=? AND role='dokter_pending'")->execute([$userId]);
+            $message = 'success|Pendaftaran dokter ditolak. Akun dikembalikan jadi user biasa.';
+        }
+    }
+
+    $calonDokter = $pdo->query("SELECT * FROM users WHERE role='dokter_pending' ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // ════════════════════════════════════════════
@@ -426,6 +466,14 @@ function namaBulan($tanggal) {
                 Kelola Dokter
             </a>
 
+            <a href="/api/dashboard_admin.php?page=verifikasi" class="nav-link-item <?= $page === 'verifikasi' ? 'active' : '' ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Verifikasi Dokter
+                <?php if ($countPendingDokter > 0): ?>
+                    <span class="badge bg-danger rounded-pill ms-1"><?= $countPendingDokter ?></span>
+                <?php endif; ?>
+            </a>
+
             <a href="/api/dashboard_admin.php?page=jadwal" class="nav-link-item <?= $page === 'jadwal' ? 'active' : '' ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 Jadwal Dokter
@@ -557,6 +605,79 @@ function namaBulan($tanggal) {
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
                             <button type="submit" class="btn btn-warning">Update</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    <?php elseif ($page === 'verifikasi'): ?>
+        <div class="topbar">
+            <div>
+                <div class="topbar-title">🛡️ <span>Verifikasi Dokter</span></div>
+                <div class="topbar-sub">Akun yang daftar mandiri pakai email @doktermeditrack.com, menunggu persetujuan admin</div>
+            </div>
+        </div>
+
+        <?php if ($message): [$type, $text] = explode('|', $message); ?>
+        <div class="alert alert-<?= $type === 'success' ? 'success' : 'danger' ?> alert-dismissible fade show rounded-3">
+            <?= htmlspecialchars($text) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <?php endif; ?>
+
+        <div class="card-custom">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">Menunggu Verifikasi</h5>
+                <span class="badge-custom"><?= count($calonDokter) ?> Akun</span>
+            </div>
+            <div class="p-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead><tr><th>#</th><th>Nama</th><th>Email</th><th class="text-center">Aksi</th></tr></thead>
+                        <tbody>
+                        <?php if (empty($calonDokter)): ?>
+                            <tr><td colspan="4" class="text-center text-muted py-4">Tidak ada akun dokter yang menunggu verifikasi.</td></tr>
+                        <?php else: foreach ($calonDokter as $i => $u): ?>
+                            <tr>
+                                <td><?= $i + 1 ?></td>
+                                <td><strong><?= htmlspecialchars($u['name']) ?></strong></td>
+                                <td><span class="badge bg-warning text-dark"><?= htmlspecialchars($u['email']) ?></span></td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-success me-1" data-bs-toggle="modal" data-bs-target="#modalVerifikasi"
+                                        onclick="document.getElementById('vf_user_id').value='<?= $u['id'] ?>'; document.getElementById('vf_nama').innerText='<?= htmlspecialchars($u['name']) ?>';">
+                                        <i class="bi bi-check-circle"></i> Verifikasi
+                                    </button>
+                                    <form method="POST" action="/api/dashboard_admin.php?page=verifikasi" style="display:inline;"
+                                          onsubmit="return confirm('Tolak pendaftaran dokter <?= htmlspecialchars($u['name']) ?>?')">
+                                        <input type="hidden" name="form_action" value="tolak">
+                                        <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-x-circle"></i> Tolak</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Verifikasi -->
+        <div class="modal fade" id="modalVerifikasi" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="/api/dashboard_admin.php?page=verifikasi">
+                        <input type="hidden" name="form_action" value="verifikasi">
+                        <input type="hidden" name="user_id" id="vf_user_id">
+                        <div class="modal-header"><h5 class="modal-title">✅ Verifikasi Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                        <div class="modal-body">
+                            <p>Aktifkan <strong id="vf_nama"></strong> sebagai dokter?</p>
+                            <div class="mb-3"><label class="form-label fw-bold">Spesialisasi</label><input name="spesialisasi" class="form-control" placeholder="Umum, Gigi, Anak, dll" required></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-save">Verifikasi</button>
                         </div>
                     </form>
                 </div>
