@@ -20,7 +20,7 @@ function midtransServerKey(): string
 {
     $key = getenv('MIDTRANS_SERVER_KEY');
     if (!$key) {
-        throw new RuntimeException('MIDTRANS_SERVER_KEY belum di-set di environment variables.');
+        throw new RuntimeException(' SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
     }
     return $key;
 }
@@ -69,7 +69,7 @@ function midtransCreateSnapTransaction(string $orderId, int $amount, array $cust
         'customer_details' => $customer,
         // Notifikasi status akan dikirim Midtrans ke URL ini (set juga di dashboard Midtrans)
         'callbacks' => [
-            'finish' => (getenv('APP_BASE_URL') ?: '') . '/api/dashboarduser.php?page=chat',
+            'finish' => (getenv('https://meditrackuas.vercel.app') ?: '') . '/api/dashboarduser.php?page=chat',
         ],
     ];
 
