@@ -10,7 +10,7 @@ if ($_SESSION['user_role'] !== 'admin') {
     exit;
 }
 
-require_once '/api/db.php';
+require_once '/db.php';
 
 $pdo      = getDB();
 $adminId  = $_SESSION['user_id'];

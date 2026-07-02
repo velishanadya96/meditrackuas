@@ -4,7 +4,7 @@ session_start();
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit; }
 if ($_SESSION['user_role'] !== 'dokter') { header("Location: login.php"); exit; }
 
-require_once '/api/db.php';
+require_once '/db.php';
 $db      = getDB();
 $userId  = $_SESSION['user_id'];
 $userName = $_SESSION['user_name'];
