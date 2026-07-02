@@ -25,10 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Email sudah terdaftar. Silakan login.';
         } else {
             $hash = password_hash($password, PASSWORD_BCRYPT);
-            $ins  = $db->prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
-            $ins->execute([$name, $email, $hash]);
+            $ins  = $db->prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)');
+            $ins->execute([$name, $email, $hash, 'user']);
 
-            header('Location: /api/login.php');
+            // Bersihin session/cookie lama biar gak auto-login ke akun sebelumnya
+            $_SESSION = [];
+            session_unset();
+            session_destroy();
+            setcookie('user_id', '', time() - 3600, '/');
+            setcookie('user_name', '', time() - 3600, '/');
+            setcookie('user_role', '', time() - 3600, '/');
+            unset($_COOKIE['user_id'], $_COOKIE['user_name'], $_COOKIE['user_role']);
+
+            header('Location: /api/login.php?loggedout=1');
             exit;
         }
     }
