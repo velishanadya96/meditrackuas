@@ -265,10 +265,10 @@ if ($page === 'chat' && $isAntreanAktif) {
         </div>
 
         <?php elseif ($page === 'antrean'): ?>
-        <?php include __DIR__ . '/api/antrean.php'; ?>
+        <?php include __DIR__ . '/antrean.php'; ?>
 
         <?php elseif ($page === 'chat'): ?>
-        <?php include __DIR__ . '/api/chat.php'; ?>
+        <?php include __DIR__ . '/chat.php'; ?>
 
         <?php endif; ?>
 
