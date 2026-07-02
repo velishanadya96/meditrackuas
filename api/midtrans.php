@@ -13,21 +13,21 @@
 
 function midtransIsProduction(): bool
 {
-    return strtolower((string) getenv('MIDTRANS_IS_PRODUCTION')) === 'true';
+    return strtolower((string) getenv('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP')) === 'true';
 }
 
 function midtransServerKey(): string
 {
-    $key = getenv('MIDTRANS_SERVER_KEY');
+    $key = getenv('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
     if (!$key) {
-        throw new RuntimeException(' SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
+        throw new RuntimeException('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
     }
     return $key;
 }
 
 function midtransClientKey(): string
 {
-    return getenv('MIDTRANS_CLIENT_KEY') ?: '';
+    return getenv('SB-Mid-client-3nBOe1ZYnyM0rfnM') ?: '';
 }
 
 function midtransSnapBaseUrl(): string
@@ -69,7 +69,7 @@ function midtransCreateSnapTransaction(string $orderId, int $amount, array $cust
         'customer_details' => $customer,
         // Notifikasi status akan dikirim Midtrans ke URL ini (set juga di dashboard Midtrans)
         'callbacks' => [
-            'finish' => (getenv('https://meditrackuas.vercel.app') ?: '') . '/api/dashboarduser.php?page=chat',
+            'finish' => (getenv('https://meditrackuas-git-develop-velishanadya96s-projects.vercel.app') ?: '') . '/api/dashboarduser.php?page=chat',
         ],
     ];
 
