@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/api/db.php';
 
 $error   = '';
 $success = '';
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ins  = $db->prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
             $ins->execute([$name, $email, $hash]);
 
-            header('Location: login.php');
+            header('Location: /api/login.php');
             exit;
         }
     }
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     <?php endif; ?>
 
-                    <form method="POST" action="register.php">
+                    <form method="POST" action="/api/register.php">
                         <div class="mb-3">
                             <label class="form-label">Nama Lengkap</label>
                             <input type="text" name="name" class="form-control"

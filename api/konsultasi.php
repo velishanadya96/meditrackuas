@@ -1,13 +1,13 @@
 <?php
 session_start();
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/api/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /api/login.php');
     exit;
 }
 if ($_SESSION['user_role'] === 'admin') {
-    header('Location: dashboard_admin.php');
+    header('Location: /api/dashboard_admin.php');
     exit;
 }
 

@@ -1,9 +1,9 @@
 <?php
 session_start();
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/api/db.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
+    header('Location: /api/login.php');
     exit;
 }
 
@@ -265,10 +265,10 @@ if ($page === 'chat' && $isAntreanAktif) {
         </div>
 
         <?php elseif ($page === 'antrean'): ?>
-        <?php include __DIR__ . '/api/pages/antrean.php'; ?>
+        <?php include __DIR__ . '/api/antrean.php'; ?>
 
         <?php elseif ($page === 'chat'): ?>
-        <?php include __DIR__ . '/api/pages/chat.php'; ?>
+        <?php include __DIR__ . '/api/chat.php'; ?>
 
         <?php endif; ?>
 

@@ -2,15 +2,15 @@
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: /api/login.php");
     exit;
 }
 if ($_SESSION['user_role'] !== 'admin') {
-    header("Location: dashboarduser.php");
+    header("Location: /api/dashboarduser.php");
     exit;
 }
 
-require_once 'db.php';
+require_once '/api/db.php';
 
 $pdo      = getDB();
 $adminId  = $_SESSION['user_id'];
@@ -513,7 +513,7 @@ function namaBulan($tanggal) {
         <div class="modal fade" id="modalTambahDokter" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <form method="POST" action="dashboard_admin.php?page=dokter">
+                    <form method="POST" action="/api/dashboard_admin.php?page=dokter">
                         <input type="hidden" name="form_action" value="tambah">
                         <div class="modal-header"><h5 class="modal-title">➕ Tambah Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                         <div class="modal-body">
@@ -537,7 +537,7 @@ function namaBulan($tanggal) {
         <div class="modal fade" id="modalEditDokter" tabindex="-1">
             <div class="modal-dialog">
                 <div class="modal-content">
-                    <form method="POST" action="dashboard_admin.php?page=dokter">
+                    <form method="POST" action="/api/dashboard_admin.php?page=dokter">
                         <input type="hidden" name="form_action" value="edit">
                         <input type="hidden" name="edit_id" id="ed_id">
                         <div class="modal-header"><h5 class="modal-title">✏️ Edit Dokter</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>

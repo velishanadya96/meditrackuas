@@ -1,15 +1,15 @@
 <?php
 session_start();
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/api/db.php';
 
 // Kalau sudah login, langsung redirect sesuai role
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['user_role'] === 'admin') {
-        header('Location: dashboard_admin.php');
+        header('Location: /api/dashboard_admin.php');
     } elseif ($_SESSION['user_role'] === 'dokter') {
-        header('Location: dashboard_dokter.php');
+        header('Location: /api/dashboard_dokter.php');
     } else {
-        header('Location: konsultasi.php');
+        header('Location: /api/konsultasi.php');
     }
     exit;
 }
@@ -34,11 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_role'] = $user['role'];
 
             if ($user['role'] === 'admin') {
-                header('Location: dashboard_admin.php');
+                header('Location: /api/dashboard_admin.php');
             } elseif ($user['role'] === 'dokter') {
-                header('Location: dashboard_dokter.php');
+                header('Location: /api/dashboard_dokter.php');
             } else {
-                header('Location: konsultasi.php');
+                header('Location: /api/konsultasi.php');
             }
             exit;
         } else {
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="alert-err">⚠️ <?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form method="POST" action="login.php">
+    <form method="POST" action="/api/login.php">
         <div class="mb-3">
             <label class="form-label">Email</label>
             <input
