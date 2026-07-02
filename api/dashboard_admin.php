@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/db.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: /api/login.php");
@@ -9,8 +10,6 @@ if ($_SESSION['user_role'] !== 'admin') {
     header("Location: /api/dashboarduser.php");
     exit;
 }
-
-require_once '/db.php';
 
 $pdo      = getDB();
 $adminId  = $_SESSION['user_id'];
