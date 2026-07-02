@@ -33,8 +33,8 @@ if ($page === 'dokter') {
             // Buat akun user dengan role dokter jika email diisi
             $userId = null;
             if ($emailDokter !== '') {
-                // Cek email belum dipakai
-                $cekEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                // Cek email belum dipakai (case-insensitive & abaikan spasi)
+                $cekEmail = $pdo->prepare("SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1");
                 $cekEmail->execute([$emailDokter]);
                 $existingUser = $cekEmail->fetch();
                 if ($existingUser) {
@@ -47,6 +47,12 @@ if ($page === 'dokter') {
                     $ins = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'dokter')");
                     $ins->execute([$nama, $emailDokter, $hash]);
                     $userId = $pdo->lastInsertId();
+                    if (!$userId) {
+                        // Fallback: TiDB kadang tidak mengembalikan lastInsertId dengan benar
+                        $cekLagi = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                        $cekLagi->execute([$emailDokter]);
+                        $userId = $cekLagi->fetchColumn();
+                    }
                 }
             }
             $stmt = $pdo->prepare("INSERT INTO dokter (nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?)");
@@ -77,8 +83,8 @@ if ($page === 'dokter') {
                     $params[] = $userId;
                     $pdo->prepare($upd)->execute($params);
                 } else {
-                    // Buat akun baru
-                    $cekEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                    // Buat akun baru (cek dulu case-insensitive & abaikan spasi)
+                    $cekEmail = $pdo->prepare("SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1");
                     $cekEmail->execute([$emailDokter]);
                     $existingUser = $cekEmail->fetch();
                     if ($existingUser) {
@@ -90,6 +96,12 @@ if ($page === 'dokter') {
                         $ins = $pdo->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'dokter')");
                         $ins->execute([$nama, $emailDokter, $hash]);
                         $userId = $pdo->lastInsertId();
+                        if (!$userId) {
+                            // Fallback: TiDB kadang tidak mengembalikan lastInsertId dengan benar
+                            $cekLagi = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+                            $cekLagi->execute([$emailDokter]);
+                            $userId = $cekLagi->fetchColumn();
+                        }
                     }
                 }
             }
@@ -949,7 +961,7 @@ function openEditDokter(data) {
     document.getElementById('ed_id').value = data.id;
     document.getElementById('ed_nama').value = data.nama;
     document.getElementById('ed_spesialisasi').value = data.spesialisasi;
-    document.getElementById('ed_email_dokter').value = data.email || '';
+    document.getElementById('ed_email_dokter').value = data.akun_email || data.email || '';
     new bootstrap.Modal(document.getElementById('modalEditDokter')).show();
 }
 function openEditJadwal(data) {
