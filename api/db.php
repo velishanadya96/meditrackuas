@@ -1,5 +1,15 @@
 <?php
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+// Jika di Vercel session-nya hilang tapi Cookie-nya ada, kita restorasi otomatis
+if (empty($_SESSION['user_id']) && isset($_COOKIE['user_id'])) {
+    $_SESSION['user_id']   = $_COOKIE['user_id'];
+    $_SESSION['user_name'] = $_COOKIE['user_name'] ?? '';
+    $_SESSION['user_role'] = $_COOKIE['user_role'] ?? '';
+}
+
 function getDB(): PDO
 {
     static $pdo = null;
@@ -13,14 +23,12 @@ function getDB(): PDO
     $dbname = getenv('DB_NAME') ?: 'meditrack';
     $user = getenv('DB_USER') ?: '2Ggt5JVH8GPf4fe.root';
     $pass = getenv('DB_PASS') ?: 'DWRk8ltkYDQhfx5L'; 
-
     $dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
-      
         PDO::MYSQL_ATTR_SSL_CA       => '', 
         PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
     ];

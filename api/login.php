@@ -33,6 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $user['name'];
             $_SESSION['user_role'] = $user['role'];
 
+            setcookie('user_id', $user['id'], time() + (3600 * 24), '/'); // Berlaku 1 hari
+            setcookie('user_name', $user['name'], time() + (3600 * 24), '/');
+            setcookie('user_role', $user['role'], time() + (3600 * 24), '/');
+
             if ($user['role'] === 'admin') {
                 header('Location: /api/dashboard_admin.php');
             } elseif ($user['role'] === 'dokter') {
