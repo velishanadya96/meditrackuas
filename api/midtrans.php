@@ -6,28 +6,29 @@
  * oleh payment.php dan payment_notification.php.
  *
  * Env vars yang dibutuhkan (set di Vercel Project Settings -> Environment Variables):
- *   MIDTRANS_SERVER_KEY   = SB-Mid-server-xxxxxxxxxxxxxxxxxxxxxxxx
- *   MIDTRANS_CLIENT_KEY   = SB-Mid-client-xxxxxxxxxxxxxxxxxxxxxxxx
+ *   MIDTRANS_SERVER_KEY    = SB-Mid-server-xxxxxxxxxxxxxxxxxxxxxxxx
+ *   MIDTRANS_CLIENT_KEY    = SB-Mid-client-xxxxxxxxxxxxxxxxxxxxxxxx
  *   MIDTRANS_IS_PRODUCTION = false   (isi "true" kalau nanti sudah live)
+ *   APP_URL                = https://domain-kamu.vercel.app  (tanpa trailing slash)
  */
 
 function midtransIsProduction(): bool
 {
-    return strtolower((string) getenv('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP')) === 'true';
+    return strtolower((string) getenv('MIDTRANS_IS_PRODUCTION')) === 'true';
 }
 
 function midtransServerKey(): string
 {
-    $key = getenv('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
+    $key = getenv('MIDTRANS_SERVER_KEY');
     if (!$key) {
-        throw new RuntimeException('SB-Mid-server-m_cLM6Lja07e89m39beTsAbP');
+        throw new RuntimeException('MIDTRANS_SERVER_KEY belum di-set di environment variables.');
     }
     return $key;
 }
 
 function midtransClientKey(): string
 {
-    return getenv('SB-Mid-client-3nBOe1ZYnyM0rfnM') ?: '';
+    return getenv('MIDTRANS_CLIENT_KEY') ?: '';
 }
 
 function midtransSnapBaseUrl(): string
@@ -69,7 +70,7 @@ function midtransCreateSnapTransaction(string $orderId, int $amount, array $cust
         'customer_details' => $customer,
         // Notifikasi status akan dikirim Midtrans ke URL ini (set juga di dashboard Midtrans)
         'callbacks' => [
-            'finish' => (getenv('https://meditrackuas-git-develop-velishanadya96s-projects.vercel.app') ?: '') . '/api/dashboarduser.php?page=chat',
+            'finish' => (getenv('APP_URL') ?: '') . '/api/dashboarduser.php?page=chat',
         ],
     ];
 
