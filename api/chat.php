@@ -1,4 +1,11 @@
 <?php
+// pages/chat.php — Chat Dokter (sisi pasien)
+
+// ── Pastikan tabel pendukung chat & pembayaran sudah ada ─────────────────────
+// (Sebelumnya belum ada auto-create seperti di antrean.php, jadi kalau tabel ini
+// belum pernah dibuat manual di database, query di bawah akan gagal dan halaman
+// chat berhenti render tanpa pesan error apa pun -- itu sebabnya kartu bayar/chat
+// tidak pernah muncul setelah dokter dipilih.)
 try {
     $db->exec("
         CREATE TABLE IF NOT EXISTS pembayaran_chat (
@@ -104,14 +111,18 @@ if ($selected_dokter_id > 0 && $isPaid) {
 <div class="chat-outer container mt-3">
     <div class="card p-3 mb-3 shadow-sm" style="border-radius:15px;">
         <label class="form-label fw-bold">Pilih Dokter & Spesialisasi Konsultasi:</label>
-        <select class="form-select" onchange="location = this.value;">
-            <option value="/api/dashboarduser.php?page=chat">-- Pilih Dokter --</option>
-            <?php foreach ($listDokter as $dok): ?>
-                <option value="/api/dashboarduser.php?page=chat&dokter_id=<?= $dok['id'] ?>" <?= $selected_dokter_id == $dok['id'] ? 'selected' : '' ?>>
-                    dr. <?= htmlspecialchars($dok['nama']) ?> (Spesialis <?= htmlspecialchars($dok['spesialisasi']) ?>)
-                </option>
-            <?php endforeach; ?>
-        </select>
+        <form method="GET" action="/api/dashboarduser.php" id="formPilihDokter">
+            <input type="hidden" name="page" value="chat">
+            <select class="form-select" name="dokter_id" onchange="document.getElementById('formPilihDokter').submit();">
+                <option value="">-- Pilih Dokter --</option>
+                <?php foreach ($listDokter as $dok): ?>
+                    <option value="<?= htmlspecialchars($dok['id']) ?>" <?= (string)$selected_dokter_id === (string)$dok['id'] ? 'selected' : '' ?>>
+                        dr. <?= htmlspecialchars($dok['nama']) ?> (Spesialis <?= htmlspecialchars($dok['spesialisasi']) ?>)
+                        <?php // TODO hapus setelah bug ID kelar: ?> [ID: <?= htmlspecialchars(var_export($dok['id'], true)) ?>]
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </form>
     </div>
 
     <?php if ($selected_dokter_id > 0): ?>
