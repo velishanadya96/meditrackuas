@@ -46,6 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($user['role'] === 'dokter_pending') {
                 $error = 'Akun dokter kamu terdaftar dengan email @doktermeditrack.com dan sedang menunggu verifikasi dari admin. Silakan coba login lagi setelah diverifikasi.';
             } else {
+                // Regenerate session ID biar sesi lama (kalau ada sisa) nggak
+                // ketuker/nyangkut ke akun yang baru login.
+                session_regenerate_id(true);
+
                 $_SESSION['user_id']   = $user['id'];
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['user_role'] = $user['role'];

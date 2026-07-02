@@ -2,6 +2,10 @@
 session_start();
 require_once __DIR__ . '/db.php';
 
+// Cegah browser nge-cache halaman dashboard admin.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: /api/login.php");
     exit;
@@ -15,6 +19,13 @@ $pdo      = getDB();
 $adminId  = $_SESSION['user_id'];
 $message  = '';
 $page     = $_GET['page'] ?? 'dokter'; // dokter | verifikasi | jadwal | rekam | chat
+
+// Kolom id di tabel `dokter` bukan AUTO_INCREMENT (keterbatasan TiDB, tidak bisa
+// diretrofit lewat ALTER TABLE), jadi id baru dihasilkan manual di sini setiap
+// kali insert dokter baru, supaya tidak ada lagi id yang tertinggal NULL/0.
+function getNextDokterId(PDO $pdo): int {
+    return (int) $pdo->query("SELECT COALESCE(MAX(id), 0) + 1 FROM dokter")->fetchColumn();
+}
 
 $countPendingDokter = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='dokter_pending'")->fetchColumn();
 
@@ -51,8 +62,8 @@ if ($page === 'dokter') {
                     $userId = $pdo->lastInsertId();
                 }
             }
-            $stmt = $pdo->prepare("INSERT INTO dokter (nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$nama, $spesialisasi, $userId, $emailDokter ?: null]);
+            $stmt = $pdo->prepare("INSERT INTO dokter (id, nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([getNextDokterId($pdo), $nama, $spesialisasi, $userId, $emailDokter ?: null]);
             $message = 'success|Dokter berhasil ditambahkan' . ($emailDokter ? ' beserta akun login.' : '.');
 
         } elseif ($_POST['form_action'] === 'edit') {
@@ -143,8 +154,8 @@ if ($page === 'verifikasi') {
                 $cekDokter->execute([$userId]);
 
                 if (!$cekDokter->fetch()) {
-                    $pdo->prepare("INSERT INTO dokter (nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?)")
-                        ->execute([$calon['name'], $spesialisasi, $userId, $calon['email']]);
+                    $pdo->prepare("INSERT INTO dokter (id, nama, spesialisasi, user_id, email) VALUES (?, ?, ?, ?, ?)")
+                        ->execute([getNextDokterId($pdo), $calon['name'], $spesialisasi, $userId, $calon['email']]);
                 }
                 $pdo->prepare("UPDATE users SET role='dokter' WHERE id=?")->execute([$userId]);
                 $message = 'success|Akun dokter berhasil diverifikasi dan diaktifkan.';

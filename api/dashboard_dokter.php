@@ -2,6 +2,12 @@
 session_start();
 require_once __DIR__ . '/db.php';
 
+// Cegah browser nge-cache halaman dashboard dokter, supaya nggak ada kejadian
+// abis logout-login pakai akun dokter lain tapi yang tampil masih data dokter
+// sebelumnya (halaman lama yang ke-cache oleh browser).
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 if (!isset($_SESSION['user_id'])) { header("Location: /api/login.php"); exit; }
 if ($_SESSION['user_role'] !== 'dokter') { header("Location: /api/login.php"); exit; }
 

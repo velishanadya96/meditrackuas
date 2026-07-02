@@ -2,6 +2,11 @@
 session_start();
 require_once __DIR__ . '/db.php';
 
+// Cegah browser nge-cache halaman dashboard, biar nggak ada kejadian
+// data user/dokter lama nyangkut kelihat lagi abis logout-login akun lain.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: /api/login.php');
     exit;
