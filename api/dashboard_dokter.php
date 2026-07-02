@@ -2,9 +2,6 @@
 session_start();
 require_once __DIR__ . '/db.php';
 
-// Cegah browser nge-cache halaman dashboard dokter, supaya nggak ada kejadian
-// abis logout-login pakai akun dokter lain tapi yang tampil masih data dokter
-// sebelumnya (halaman lama yang ke-cache oleh browser).
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
@@ -393,7 +390,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
 .chat-list-item { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: .15s; display: flex; align-items: center; gap: 12px; text-decoration: none; }
 .chat-list-item:hover { background: #f0f9ff; }
 .chat-list-item.active { background: #dbeafe; }
-.chat-box { height: 420px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f8fafc; }
+.chat-box { height: 420px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f8fafc; max-width: 620px; margin: 0 auto; width: 100%; }
 
 /* JADWAL */
 .jadwal-day-block { margin-bottom: 22px; }
@@ -859,7 +856,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
       </div>
       <div class="col-md-8 d-flex flex-column">
         <?php if (!empty($chatUserId) && $chatUserName): ?>
-          <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;background:#f8fafc;">
+          <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;background:#f8fafc;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
             <div class="chat-avatar-sm" style="width:36px;height:36px;font-size:.85rem;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
             <div>
               <div style="font-weight:700;color:#0f172a;"><?= htmlspecialchars($chatUserName) ?></div>
@@ -888,7 +885,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
               <?php endif; ?>
             <?php endforeach; endif; ?>
           </div>
-          <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;">
+          <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
             <form method="POST" action="/api/dashboard_dokter.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
               <textarea name="reply" rows="2" style="flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:.875rem;resize:none;outline:none;font-family:inherit;" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
               <button type="submit" style="width:42px;height:42px;border-radius:50%;background:#0ea5e9;border:none;color:white;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>

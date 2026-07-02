@@ -73,6 +73,7 @@ if ($selected_dokter_id !== null && $isPaid) {
 ?>
 
 <style>
+    .chat-outer { max-width: 640px; margin: 0 auto; padding: 0 4px; }
     .chat-picker-card { background: white; border: none; border-radius: 18px; box-shadow: 0 8px 20px rgba(14,165,233,.12); padding: 20px 24px; margin-bottom: 18px; }
     .chat-picker-card label { font-weight: 700; color: #0f172a; font-size: .92rem; margin-bottom: 8px; display: block; }
     .chat-picker-card select { border-radius: 12px; border: 1.5px solid #dbeafe; padding: 10px 14px; font-size: .92rem; }
