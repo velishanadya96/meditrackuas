@@ -92,6 +92,12 @@ if ($page === 'dokter') {
                         $userId = $pdo->lastInsertId();
                     }
                 }
+            } else {
+                // Email login dikosongkan -> putuskan link akun yang sudah ada (jika ada)
+                if ($userId) {
+                    $pdo->prepare("UPDATE users SET role='user' WHERE id=?")->execute([$userId]);
+                }
+                $userId = null;
             }
 
             $stmt = $pdo->prepare("UPDATE dokter SET nama=?, spesialisasi=?, user_id=?, email=? WHERE id=?");
