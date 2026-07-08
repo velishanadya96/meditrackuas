@@ -776,7 +776,7 @@ function namaBulan($tanggal) {
                                  kalau ada nama dokter/spesialisasi mengandung tanda kutip ('),
                                  atribut onclick tidak terpotong dan tombol edit tetap berfungsi. */ ?>
                         <button class="btn btn-sm btn-warning" onclick='openEditJadwal(<?= htmlspecialchars(json_encode($j), ENT_QUOTES) ?>)'><i class="bi bi-pencil"></i></button>
-                        <a href="?page=jadwal&action=hapus&id=<?= $j['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus jadwal ini?')"><i class="bi bi-trash"></i></a>
+                        <a href="?page=jadwal&action=hapus&id=<?= $j['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('[V2] Hapus jadwal ini?')"><i class="bi bi-trash"></i></a>
                     </div>
                 </div>
             <?php endforeach; endif; ?>
