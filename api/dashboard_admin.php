@@ -214,6 +214,17 @@ if ($page === 'jadwal') {
         } catch (PDOException $e) {
             $message = 'danger|Gagal menyimpan jadwal: ' . $e->getMessage();
         }
+
+        // Post/Redirect/Get: cegah form ke-submit ulang kalau halaman di-refresh
+        $_SESSION['flash_jadwal'] = $message;
+        header('Location: /api/dashboard_admin.php?page=jadwal');
+        exit;
+    }
+
+    // Ambil pesan flash dari redirect (kalau ada)
+    if (isset($_SESSION['flash_jadwal'])) {
+        $message = $_SESSION['flash_jadwal'];
+        unset($_SESSION['flash_jadwal']);
     }
 
     if ($action === 'hapus' && $id) {
@@ -226,6 +237,9 @@ if ($page === 'jadwal') {
         } catch (PDOException $e) {
             $message = 'danger|Gagal hapus jadwal: ' . $e->getMessage();
         }
+        $_SESSION['flash_jadwal'] = $message;
+        header('Location: /api/dashboard_admin.php?page=jadwal');
+        exit;
     }
 
     // Dropdown daftar dokter untuk form
