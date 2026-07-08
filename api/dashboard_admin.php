@@ -192,15 +192,31 @@ if ($page === 'jadwal') {
             $stmt->execute([$dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status]);
             $message = 'success|Jadwal berhasil ditambahkan.';
         } elseif ($_POST['form_action'] === 'edit') {
-            $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=? WHERE id=?");
+            // FIX: kalau admin set status jadi 'tersedia' manual, reset juga
+            // `terisi` ke 0. Tanpa ini, `terisi` lama tetap tinggi walau status
+            // sudah diubah, jadi di sisi user (antrean.php) tetap kebaca "penuh"
+            // karena syaratnya cek (status === 'penuh') ATAU (kuota - terisi <= 0).
+            if ($status === 'tersedia') {
+                $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=?, terisi=0 WHERE id=?");
+            } else {
+                $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=? WHERE id=?");
+            }
             $stmt->execute([$dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status, $_POST['edit_id']]);
             $message = 'success|Jadwal berhasil diupdate.';
         }
     }
 
     if ($action === 'hapus' && $id) {
-        $pdo->prepare("DELETE FROM jadwal_dokter WHERE id = ?")->execute([$id]);
-        $message = 'success|Jadwal berhasil dihapus.';
+        // FIX: dibungkus try/catch. Kalau jadwal ini sudah punya antrean terkait
+        // (ada pasien yang pernah ambil antrean di jadwal ini), hapus bisa gagal
+        // kena constraint di database. Sebelumnya error ini bikin halaman blank/
+        // fatal error tanpa pesan jelas. Sekarang ditangkap dan ditampilkan.
+        try {
+            $pdo->prepare("DELETE FROM jadwal_dokter WHERE id = ?")->execute([$id]);
+            $message = 'success|Jadwal berhasil dihapus.';
+        } catch (PDOException $e) {
+            $message = 'danger|Gagal menghapus jadwal. Kemungkinan jadwal ini sudah punya antrean pasien terkait, sehingga tidak bisa dihapus langsung.';
+        }
     }
 
     // Dropdown daftar dokter untuk form
@@ -756,7 +772,10 @@ function namaBulan($tanggal) {
                         <?php else: ?>
                             <span class="badge bg-secondary-subtle text-secondary border border-secondary">🚫 Libur</span>
                         <?php endif; ?>
-                        <button class="btn btn-sm btn-warning" onclick='openEditJadwal(<?= json_encode($j) ?>)'><i class="bi bi-pencil"></i></button>
+                        <?php /* FIX: json_encode() dibungkus htmlspecialchars(ENT_QUOTES) supaya
+                                 kalau ada nama dokter/spesialisasi mengandung tanda kutip ('),
+                                 atribut onclick tidak terpotong dan tombol edit tetap berfungsi. */ ?>
+                        <button class="btn btn-sm btn-warning" onclick='openEditJadwal(<?= htmlspecialchars(json_encode($j), ENT_QUOTES) ?>)'><i class="bi bi-pencil"></i></button>
                         <a href="?page=jadwal&action=hapus&id=<?= $j['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus jadwal ini?')"><i class="bi bi-trash"></i></a>
                     </div>
                 </div>
