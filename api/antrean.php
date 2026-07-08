@@ -122,8 +122,8 @@ $tanggalMulai = date('Y-m-d');
 $tanggalAkhir = date('Y-m-d', strtotime('+6 days'));
 
 $stmtJadwal = $db->prepare("
-    SELECT j.*, d.nama AS nama_dokter, d.spesialisasi,
-           (j.kuota - j.terisi) AS sisa_kuota
+    SELECT j.*, COALESCE(j.terisi, 0) AS terisi, d.nama AS nama_dokter, d.spesialisasi,
+           (j.kuota - COALESCE(j.terisi, 0)) AS sisa_kuota
     FROM jadwal_dokter j
     JOIN dokter d ON d.id = j.dokter_id
     WHERE j.tanggal BETWEEN ? AND ?

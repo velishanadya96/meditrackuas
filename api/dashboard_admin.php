@@ -27,6 +27,12 @@ function getNextDokterId(PDO $pdo): int {
     return (int) $pdo->query("SELECT COALESCE(MAX(id), 0) + 1 FROM dokter")->fetchColumn();
 }
 
+// Sama kayak dokter: id di tabel jadwal_dokter juga bukan AUTO_INCREMENT
+// yang bisa diandalkan di TiDB, jadi id-nya digenerate manual di sini.
+function getNextJadwalId(PDO $pdo): int {
+    return (int) $pdo->query("SELECT COALESCE(MAX(id), 0) + 1 FROM jadwal_dokter")->fetchColumn();
+}
+
 $countPendingDokter = (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='dokter_pending'")->fetchColumn();
 
 // ════════════════════════════════════════════
@@ -187,35 +193,38 @@ if ($page === 'jadwal') {
         $kuota       = (int) $_POST['kuota'];
         $status      = $_POST['status'];
 
-        if ($_POST['form_action'] === 'tambah') {
-            $stmt = $pdo->prepare("INSERT INTO jadwal_dokter (dokter_id, tanggal, jam_mulai, jam_selesai, kuota, status) VALUES (?,?,?,?,?,?)");
-            $stmt->execute([$dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status]);
-            $message = 'success|Jadwal berhasil ditambahkan.';
-        } elseif ($_POST['form_action'] === 'edit') {
-            // FIX: kalau admin set status jadi 'tersedia' manual, reset juga
-            // `terisi` ke 0. Tanpa ini, `terisi` lama tetap tinggi walau status
-            // sudah diubah, jadi di sisi user (antrean.php) tetap kebaca "penuh"
-            // karena syaratnya cek (status === 'penuh') ATAU (kuota - terisi <= 0).
-            if ($status === 'tersedia') {
-                $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=?, terisi=0 WHERE id=?");
-            } else {
-                $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=? WHERE id=?");
+        try {
+            if ($_POST['form_action'] === 'tambah') {
+                $newJadwalId = getNextJadwalId($pdo);
+                $stmt = $pdo->prepare("INSERT INTO jadwal_dokter (id, dokter_id, tanggal, jam_mulai, jam_selesai, kuota, terisi, status) VALUES (?,?,?,?,?,?,0,?)");
+                $stmt->execute([$newJadwalId, $dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status]);
+                $message = 'success|Jadwal berhasil ditambahkan.';
+            } elseif ($_POST['form_action'] === 'edit') {
+                $editIdJadwal = (int) ($_POST['edit_id'] ?? 0);
+                if ($editIdJadwal <= 0) {
+                    $message = 'danger|Gagal update: ID jadwal tidak valid.';
+                } else {
+                    $stmt = $pdo->prepare("UPDATE jadwal_dokter SET dokter_id=?, tanggal=?, jam_mulai=?, jam_selesai=?, kuota=?, status=? WHERE id=?");
+                    $stmt->execute([$dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status, $editIdJadwal]);
+                    $message = $stmt->rowCount() > 0
+                        ? 'success|Jadwal berhasil diupdate.'
+                        : 'danger|Tidak ada jadwal yang berubah (ID tidak ditemukan).';
+                }
             }
-            $stmt->execute([$dokterId, $tanggal, $jamMulai, $jamSelesai, $kuota, $status, $_POST['edit_id']]);
-            $message = 'success|Jadwal berhasil diupdate.';
+        } catch (PDOException $e) {
+            $message = 'danger|Gagal menyimpan jadwal: ' . $e->getMessage();
         }
     }
 
     if ($action === 'hapus' && $id) {
-        // FIX: dibungkus try/catch. Kalau jadwal ini sudah punya antrean terkait
-        // (ada pasien yang pernah ambil antrean di jadwal ini), hapus bisa gagal
-        // kena constraint di database. Sebelumnya error ini bikin halaman blank/
-        // fatal error tanpa pesan jelas. Sekarang ditangkap dan ditampilkan.
         try {
-            $pdo->prepare("DELETE FROM jadwal_dokter WHERE id = ?")->execute([$id]);
-            $message = 'success|Jadwal berhasil dihapus.';
+            $del = $pdo->prepare("DELETE FROM jadwal_dokter WHERE id = ?");
+            $del->execute([(int) $id]);
+            $message = $del->rowCount() > 0
+                ? 'success|Jadwal berhasil dihapus.'
+                : 'danger|Jadwal tidak ditemukan (kemungkinan data lama tanpa ID valid, cek langkah pembersihan di bawah).';
         } catch (PDOException $e) {
-            $message = 'danger|Gagal menghapus jadwal. Kemungkinan jadwal ini sudah punya antrean pasien terkait, sehingga tidak bisa dihapus langsung.';
+            $message = 'danger|Gagal hapus jadwal: ' . $e->getMessage();
         }
     }
 
@@ -227,7 +236,7 @@ if ($page === 'jadwal') {
     $tanggalAkhir = date('Y-m-d', strtotime('+6 days'));
 
     $stmtJadwal = $pdo->prepare("
-        SELECT j.*, d.nama AS nama_dokter, d.spesialisasi
+        SELECT j.*, COALESCE(j.terisi, 0) AS terisi, d.nama AS nama_dokter, d.spesialisasi
         FROM jadwal_dokter j
         JOIN dokter d ON d.id = j.dokter_id
         WHERE j.tanggal BETWEEN ? AND ?
@@ -772,10 +781,7 @@ function namaBulan($tanggal) {
                         <?php else: ?>
                             <span class="badge bg-secondary-subtle text-secondary border border-secondary">🚫 Libur</span>
                         <?php endif; ?>
-                        <?php /* FIX: json_encode() dibungkus htmlspecialchars(ENT_QUOTES) supaya
-                                 kalau ada nama dokter/spesialisasi mengandung tanda kutip ('),
-                                 atribut onclick tidak terpotong dan tombol edit tetap berfungsi. */ ?>
-                        <button class="btn btn-sm btn-warning" onclick='openEditJadwal(<?= htmlspecialchars(json_encode($j), ENT_QUOTES) ?>)'><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-warning" onclick='openEditJadwal(<?= json_encode($j) ?>)'><i class="bi bi-pencil"></i></button>
                         <a href="?page=jadwal&action=hapus&id=<?= $j['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus jadwal ini?')"><i class="bi bi-trash"></i></a>
                     </div>
                 </div>
