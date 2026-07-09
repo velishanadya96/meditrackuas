@@ -85,16 +85,9 @@ if ($page === 'dokter') {
 
             if ($emailDokter !== '') {
                 if ($userId) {
-                    // Update akun yang sudah ada
-                    $upd = "UPDATE users SET name=?, email=?, role='dokter'";
-                    $params = [$nama, $emailDokter];
-                    if ($passwordBaru !== '') {
-                        $upd .= ", password=?";
-                        $params[] = password_hash($passwordBaru, PASSWORD_BCRYPT);
-                    }
-                    $upd .= " WHERE id=?";
-                    $params[] = $userId;
-                    $pdo->prepare($upd)->execute($params);
+                    // Update akun yang sudah ada (password login tidak diubah dari sini)
+                    $pdo->prepare("UPDATE users SET name=?, email=?, role='dokter' WHERE id=?")
+                        ->execute([$nama, $emailDokter, $userId]);
                 } else {
                     // Buat akun baru
                     $cekEmail = $pdo->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
@@ -650,7 +643,6 @@ function namaBulan($tanggal) {
                             <hr>
                             <div class="mb-1 text-muted" style="font-size:.8rem;"><i class="bi bi-person-badge me-1"></i>Akun Login Dokter</div>
                             <div class="mb-3"><label class="form-label fw-bold">Email Login</label><input type="email" name="email_dokter" id="ed_email_dokter" class="form-control"></div>
-                            <div class="mb-3"><label class="form-label fw-bold">Password Baru</label><input type="password" name="password_dokter" class="form-control" placeholder="Kosongkan jika tidak diubah"></div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
