@@ -281,5 +281,17 @@ if ($page === 'chat' && $isAntreanAktif) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<?php if (($_GET['chat_blocked'] ?? '') === '1'): ?>
+<script>
+    Swal.fire({
+        icon: 'warning',
+        title: 'Chat Dokter Terkunci',
+        html: 'Kamu masih punya <b>antrean offline aktif</b>.<br>Selesaikan atau batalkan dulu antreanmu sebelum bisa pakai Chat Dokter (konsultasi online).',
+        confirmButtonText: 'Oke, Mengerti',
+        confirmButtonColor: '#0ea5e9'
+    });
+</script>
+<?php endif; ?>
 </body>
 </html>
