@@ -69,6 +69,25 @@ if ($subaction === 'ambil' && isset($_GET['jadwal_id'])) {
                     WHERE id = ? AND terisi >= kuota
                 ")->execute([$jadwalId]);
 
+                // Verifikasi id benar-benar ke-generate (TiDB AUTO_INCREMENT kadang gagal / NULL)
+                $stmtCekId = $db->prepare("
+                    SELECT id FROM antrean
+                    WHERE user_id = ? AND jadwal_id = ? AND nomor_antrean = ?
+                    ORDER BY created_at DESC LIMIT 1
+                ");
+                $stmtCekId->execute([$userId, $jadwalId, $nomorBaru]);
+                $rowCekId = $stmtCekId->fetch();
+
+                if ($rowCekId && $rowCekId['id'] === null) {
+                    // id NULL -> generate manual & isi
+                    $stmtMaxId = $db->query("SELECT COALESCE(MAX(id), 0) + 1 FROM antrean");
+                    $idBaru = (int) $stmtMaxId->fetchColumn();
+                    $db->prepare("
+                        UPDATE antrean SET id = ?
+                        WHERE user_id = ? AND jadwal_id = ? AND nomor_antrean = ? AND id IS NULL
+                    ")->execute([$idBaru, $userId, $jadwalId, $nomorBaru]);
+                }
+
                 $msgAntrean = "success|Berhasil ambil antrean! Nomor kamu: <strong>#$nomorBaru</strong>";
             }
         }
