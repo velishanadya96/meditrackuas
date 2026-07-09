@@ -423,6 +423,56 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
 .chat-list-item.active { background: #dbeafe; }
 .chat-box { height: 420px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #f8fafc; max-width: 620px; margin: 0 auto; width: 100%; }
 
+/* ===== WhatsApp-style redesign khusus halaman Chat Pasien (dokter) ===== */
+:root {
+    --wa-header: #0ea5e9;
+    --wa-header-dark: #0284c7;
+    --wa-accent: #0ea5e9;
+    --wa-bubble-out: #dbeafe;
+    --wa-bubble-in: #ffffff;
+    --wa-wallpaper: #eef6fc;
+    --wa-text: #0f172a;
+    --wa-text-muted: #64748b;
+}
+.wa-shell { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.12); border: 1px solid rgba(0,0,0,.05); min-height: 560px; }
+.wa-sidebar { background: white; border-right: 1px solid #e9edef; }
+.wa-sidebar-head { padding: 16px 18px; font-weight: 700; font-size: .8rem; letter-spacing: .04em; color: white; background: linear-gradient(135deg, var(--wa-header), var(--wa-header-dark)); }
+.wa-list-item { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: .15s; display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.wa-list-item:hover { background: #f0f9ff; }
+.wa-list-item.active { background: #dbeafe; }
+.wa-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #0284c7); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 1rem; }
+.wa-list-name { font-weight: 600; font-size: .9rem; color: var(--wa-text); }
+.wa-list-time { font-size: .72rem; color: var(--wa-text-muted); }
+.wa-list-unread { background: var(--wa-accent); color: white; border-radius: 50px; font-size: .68rem; padding: 2px 7px; font-weight: 700; margin-left: auto; }
+
+.wa-chat-header { padding: 12px 18px; display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, var(--wa-header), var(--wa-header-dark)); }
+.wa-chat-header .wa-avatar { width: 38px; height: 38px; font-size: .95rem; background: rgba(255,255,255,.2); }
+.wa-chat-header-name { font-weight: 600; color: white; font-size: .95rem; }
+.wa-chat-header-sub { font-size: .72rem; color: rgba(255,255,255,.8); }
+.wa-timer-pill { margin-left: auto; background: rgba(255,255,255,.2); color: white; border-radius: 20px; padding: 6px 12px; font-size: .7rem; font-weight: 700; white-space: nowrap; }
+
+.wa-body {
+    height: 440px; overflow-y: auto; padding: 14px 6%; display: flex; flex-direction: column; gap: 2px;
+    background-color: var(--wa-wallpaper);
+    background-image:
+        radial-gradient(circle at 15% 20%, rgba(14,165,233,.04) 0, transparent 45%),
+        radial-gradient(circle at 85% 60%, rgba(14,165,233,.04) 0, transparent 45%),
+        radial-gradient(circle at 40% 85%, rgba(14,165,233,.03) 0, transparent 40%);
+}
+.wa-row { display: flex; }
+.wa-row.out { justify-content: flex-end; }
+.wa-row.in { justify-content: flex-start; align-items: flex-end; gap: 8px; }
+.wa-bubble { position: relative; max-width: 72%; padding: 7px 9px 6px 10px; border-radius: 8px; font-size: .875rem; line-height: 1.4; box-shadow: 0 1px 1px rgba(0,0,0,.1); }
+.wa-row.out .wa-bubble { background: var(--wa-bubble-out); color: var(--wa-text); border-top-right-radius: 0; }
+.wa-row.in .wa-bubble { background: var(--wa-bubble-in); color: var(--wa-text); border-top-left-radius: 0; }
+.wa-bubble-time { float: right; margin: 4px 0 -2px 8px; font-size: .66rem; color: var(--wa-text-muted); }
+
+.wa-footer { padding: 8px 12px; border-top: 1px solid rgba(0,0,0,.05); background: #f0f2f5; }
+.wa-footer textarea { border-radius: 20px; border: none; padding: 10px 18px; background: white; font-size: .875rem; }
+.wa-footer textarea:focus { outline: none; box-shadow: 0 0 0 1.5px var(--wa-header); }
+.wa-send-btn { background: var(--wa-header); color: white; }
+.wa-expired-banner { padding: 14px 16px; background: #fff3cd; color: #7a5c00; text-align: center; font-size: .82rem; border-top: 1px solid rgba(0,0,0,.05); }
+
 /* JADWAL */
 .jadwal-day-block { margin-bottom: 22px; }
 .jadwal-day-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e0f2fe; }
@@ -869,65 +919,68 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
       <h2>💬 <span style="color:var(--primary);">Chat Pasien</span></h2>
       <p>Balas pesan dari pasien yang pernah antrean ke Anda</p>
     </div>
-    <div class="row g-0 card" style="overflow:hidden;min-height:520px;">
-      <div class="col-md-4" style="border-right:1px solid #e2e8f0;">
-        <div style="padding:14px 16px;font-weight:700;font-size:.85rem;color:#64748b;border-bottom:1px solid #f1f5f9;background:#f8fafc;">PASIEN</div>
+    <div class="row g-0 card wa-shell">
+      <div class="col-md-4 wa-sidebar">
+        <div class="wa-sidebar-head">💬 PASIEN</div>
         <?php if (empty($chatUsers)): ?>
           <div class="empty-state"><i class="bi bi-chat-square d-block"></i><p>Belum ada pasien yang chat.</p></div>
         <?php else: foreach ($chatUsers as $cu): ?>
-          <a href="/api/dashboard_dokter.php?page=chat&chat_user=<?= $cu['id'] ?>" class="chat-list-item <?= ($chatUserId==$cu['id'])?'active':'' ?>">
-            <div class="chat-avatar-sm"><?= strtoupper(substr($cu['name'],0,1)) ?></div>
+          <a href="/api/dashboard_dokter.php?page=chat&chat_user=<?= $cu['id'] ?>" class="wa-list-item <?= ($chatUserId==$cu['id'])?'active':'' ?>">
+            <div class="wa-avatar"><?= strtoupper(substr($cu['name'],0,1)) ?></div>
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:600;color:#0f172a;font-size:.9rem;"><?= htmlspecialchars($cu['name']) ?></div>
-              <div style="font-size:.75rem;color:#94a3b8;"><?= date('d M H:i',strtotime($cu['last_msg'])) ?></div>
+              <div class="wa-list-name"><?= htmlspecialchars($cu['name']) ?></div>
+              <div class="wa-list-time"><?= date('d M H:i',strtotime($cu['last_msg'])) ?></div>
             </div>
-            <?php if ($cu['unread']>0): ?><span class="badge-notif"><?= $cu['unread'] ?></span><?php endif; ?>
+            <?php if ($cu['unread']>0): ?><span class="wa-list-unread"><?= $cu['unread'] ?></span><?php endif; ?>
           </a>
         <?php endforeach; endif; ?>
       </div>
       <div class="col-md-8 d-flex flex-column">
         <?php if (!empty($chatUserId) && $chatUserName): ?>
-          <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;background:#f8fafc;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
-            <div class="chat-avatar-sm" style="width:36px;height:36px;font-size:.85rem;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
-            <div style="flex:1;">
-              <div style="font-weight:700;color:#0f172a;"><?= htmlspecialchars($chatUserName) ?></div>
-              <div style="font-size:.72rem;color:#0ea5e9;">● Pasien</div>
+          <div class="wa-chat-header">
+            <div class="wa-avatar"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
+            <div style="flex:1;min-width:0;">
+              <div class="wa-chat-header-name"><?= htmlspecialchars($chatUserName) ?></div>
+              <div class="wa-chat-header-sub">Pasien</div>
             </div>
             <?php if ($chatExpiresAt !== null): ?>
-              <div class="chat-timer" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>" style="background:<?= $chatExpired ? '#fee2e2' : '#dbeafe' ?>;color:<?= $chatExpired ? '#b91c1c' : '#1d4ed8' ?>;border-radius:10px;padding:6px 12px;font-size:.72rem;font-weight:700;white-space:nowrap;">⏳ --</div>
+              <div class="wa-timer-pill" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>">⏳ --</div>
             <?php endif; ?>
           </div>
-          <div class="chat-box flex-grow-1" id="chatBox">
+          <div class="wa-body flex-grow-1" id="chatBox">
+            <?php if ($chatExpiresAt !== null): ?>
+              <div class="chat-session-banner" style="align-self:center;background:#fff3cd;color:#7a5c00;font-size:.72rem;padding:6px 14px;border-radius:8px;margin-bottom:10px;text-align:center;max-width:90%;">🔒 Sesi konsultasi berlaku 1×24 jam sejak pasien membayar.</div>
+            <?php endif; ?>
             <?php if (empty($chatMessages)): ?>
               <div style="text-align:center;margin:auto;color:#94a3b8;font-size:.88rem;">Belum ada pesan</div>
             <?php else: foreach ($chatMessages as $cm): ?>
               <?php if ($cm['pengirim']==='user'): ?>
-                <div style="display:flex;align-items:flex-end;gap:8px;">
-                  <div class="chat-avatar-sm" style="width:30px;height:30px;font-size:.75rem;flex-shrink:0;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
-                  <div style="max-width:72%;background:white;border:1px solid #e2e8f0;border-radius:18px 18px 18px 4px;padding:10px 14px;font-size:.875rem;">
+                <div class="wa-row in">
+                  <div class="wa-avatar" style="width:28px;height:28px;font-size:.7rem;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
+                  <div class="wa-bubble">
                     <?= linkify($cm['pesan']) ?>
-                    <div style="font-size:.68rem;color:#94a3b8;margin-top:4px;"><?= date('H:i',strtotime($cm['created_at'])) ?></div>
+                    <span class="wa-bubble-time"><?= date('H:i',strtotime($cm['created_at'])) ?></span>
                   </div>
                 </div>
               <?php else: ?>
-                <div style="display:flex;justify-content:flex-end;">
-                  <div style="max-width:72%;background:linear-gradient(135deg,#38bdf8,#0284c7);color:white;border-radius:18px 18px 4px 18px;padding:10px 14px;font-size:.875rem;">
+                <div class="wa-row out">
+                  <div class="wa-bubble">
                     <?= linkify($cm['pesan']) ?>
-                    <div style="font-size:.68rem;opacity:.75;margin-top:4px;text-align:right;"><?= date('H:i',strtotime($cm['created_at'])) ?> · dr. <?= htmlspecialchars($namaDokter) ?></div>
+                    <span class="wa-bubble-time"><?= date('H:i',strtotime($cm['created_at'])) ?> ✓✓</span>
                   </div>
                 </div>
               <?php endif; ?>
             <?php endforeach; endif; ?>
           </div>
           <?php if ($chatExpired): ?>
-            <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:#fff7ed;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;text-align:center;font-size:.82rem;color:#9a3412;">
+            <div class="wa-expired-banner">
               ⏳ Sesi konsultasi pasien ini sudah lewat 24 jam. Pasien perlu membayar ulang untuk melanjutkan chat.
             </div>
           <?php else: ?>
-          <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
+          <div class="wa-footer">
             <form method="POST" action="/api/dashboard_dokter.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
-              <textarea name="reply" rows="2" style="flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:.875rem;resize:none;outline:none;font-family:inherit;" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
-              <button type="submit" style="width:42px;height:42px;border-radius:50%;background:#0ea5e9;border:none;color:white;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>
+              <textarea name="reply" rows="1" style="flex:1;font-family:inherit;resize:none;" class="form-control" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
+              <button type="submit" class="wa-send-btn" style="width:42px;height:42px;border-radius:50%;border:none;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>
             </form>
           </div>
           <?php endif; ?>

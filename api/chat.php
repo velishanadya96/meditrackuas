@@ -37,6 +37,19 @@ if ($selected_dokter_id !== null && !in_array($selected_dokter_id, $validIds, tr
     $selected_dokter_id = null;
 }
 
+// Ambil nama & spesialisasi dokter yang sedang dipilih (buat ditampilkan di header chat)
+$selectedDokterNama = '';
+$selectedDokterSpesialisasi = '';
+if ($selected_dokter_id !== null) {
+    foreach ($listDokter as $dok) {
+        if ((int)$dok['id'] === $selected_dokter_id) {
+            $selectedDokterNama = $dok['nama'];
+            $selectedDokterSpesialisasi = $dok['spesialisasi'];
+            break;
+        }
+    }
+}
+
 // Cek Status Pembayaran + masa berlaku 1x24 jam sejak dibayar
 $isPaid = false;
 $chatExpiresAt = null; // unix timestamp
@@ -99,40 +112,67 @@ if ($selected_dokter_id !== null && $isPaid) {
 ?>
 
 <style>
+    :root {
+        --wa-header: #0ea5e9;
+        --wa-header-dark: #0284c7;
+        --wa-accent: #0ea5e9;
+        --wa-accent-dark: #0284c7;
+        --wa-bubble-out: #dbeafe;
+        --wa-bubble-in: #ffffff;
+        --wa-wallpaper: #eef6fc;
+        --wa-text: #0f172a;
+        --wa-text-muted: #64748b;
+    }
+
     .chat-outer { max-width: 640px; margin: 0 auto; padding: 0 4px; }
-    .chat-picker-card { background: white; border: none; border-radius: 18px; box-shadow: 0 8px 20px rgba(14,165,233,.12); padding: 20px 24px; margin-bottom: 18px; }
-    .chat-picker-card label { font-weight: 700; color: #0f172a; font-size: .92rem; margin-bottom: 8px; display: block; }
-    .chat-picker-card select { border-radius: 12px; border: 1.5px solid #dbeafe; padding: 10px 14px; font-size: .92rem; }
-    .chat-picker-card select:focus { border-color: #38bdf8; box-shadow: 0 0 0 .2rem rgba(56,189,248,.18); }
+    .chat-picker-card { background: white; border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 16px 20px; margin-bottom: 16px; }
+    .chat-picker-card label { font-weight: 700; color: var(--wa-text); font-size: .88rem; margin-bottom: 8px; display: block; }
+    .chat-picker-card select { border-radius: 10px; border: 1.5px solid #d1d7db; padding: 10px 14px; font-size: .9rem; }
+    .chat-picker-card select:focus { border-color: var(--wa-header); box-shadow: 0 0 0 .2rem rgba(7,94,84,.15); }
 
-    .chat-lock-card { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(14,165,233,.15); padding: 48px 32px; text-align: center; }
+    .chat-lock-card { background: white; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,.1); padding: 44px 32px; text-align: center; }
     .chat-lock-icon { font-size: 3.2rem; margin-bottom: 8px; }
-    .chat-lock-price { color: #0ea5e9; font-weight: 800; font-size: 2rem; margin: 6px 0 22px; }
-    .chat-lock-btn { background: linear-gradient(135deg, #22c55e, #16a34a); border: none; color: white; font-weight: 700; padding: 13px 40px; border-radius: 14px; font-size: 1rem; box-shadow: 0 6px 18px rgba(34,197,94,.35); transition: .2s; }
-    .chat-lock-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(34,197,94,.45); color: white; }
+    .chat-lock-price { color: var(--wa-header); font-weight: 800; font-size: 2rem; margin: 6px 0 14px; }
+    .chat-lock-notice { background: #fff8e1; border: 1px solid #ffe69c; color: #7a5c00; border-radius: 12px; padding: 10px 16px; font-size: .82rem; margin: 0 auto 22px; max-width: 420px; display: flex; align-items: center; gap: 8px; text-align: left; }
+    .chat-lock-btn { background: linear-gradient(135deg, var(--wa-header), var(--wa-header-dark)); border: none; color: white; font-weight: 700; padding: 13px 40px; border-radius: 50px; font-size: 1rem; box-shadow: 0 6px 18px rgba(14,165,233,.35); transition: .2s; }
+    .chat-lock-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(14,165,233,.45); color: white; background: var(--wa-header-dark); }
 
-    .chat-card { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(14,165,233,.18); }
-    .chat-header { background: linear-gradient(135deg, #0ea5e9, #0369a1); padding: 18px 22px; display: flex; align-items: center; gap: 12px; }
-    .chat-header-avatar { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
-    .chat-header-name { color: white; font-weight: 700; font-size: 1.02rem; }
-    .chat-header-sub { color: #e0f2fe; font-size: .78rem; }
+    .chat-card { background: var(--wa-wallpaper); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.15); border: 1px solid rgba(0,0,0,.05); }
 
-    .chat-body { height: 420px; overflow-y: auto; padding: 22px; background: #f0f9ff; display: flex; flex-direction: column; }
-    .chat-empty { margin: auto; text-align: center; color: #64748b; }
+    .chat-header { background: linear-gradient(135deg, var(--wa-header), var(--wa-header-dark)); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+    .chat-header-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 700; color: white; flex-shrink: 0; }
+    .chat-header-name { color: white; font-weight: 600; font-size: .98rem; line-height: 1.25; }
+    .chat-header-sub { color: rgba(255,255,255,.8); font-size: .74rem; }
+
+    .chat-body {
+        height: 440px; overflow-y: auto; padding: 14px 6%; display: flex; flex-direction: column;
+        background-color: var(--wa-wallpaper);
+        background-image:
+            radial-gradient(circle at 15% 20%, rgba(0,0,0,.025) 0, transparent 45%),
+            radial-gradient(circle at 85% 60%, rgba(0,0,0,.025) 0, transparent 45%),
+            radial-gradient(circle at 40% 85%, rgba(0,0,0,.02) 0, transparent 40%);
+    }
+    .chat-empty { margin: auto; text-align: center; color: var(--wa-text-muted); }
     .chat-empty-icon { font-size: 2.4rem; margin-bottom: 10px; }
 
-    .bubble-row { display: flex; margin-bottom: 14px; }
+    .chat-session-banner { align-self: center; background: #fff3cd; color: #7a5c00; font-size: .74rem; padding: 7px 14px; border-radius: 8px; margin-bottom: 14px; text-align: center; max-width: 90%; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+    .bubble-row { display: flex; margin-bottom: 6px; }
     .bubble-row.from-user { justify-content: flex-end; }
     .bubble-row.from-dokter { justify-content: flex-start; }
-    .bubble { max-width: 72%; padding: 11px 16px; border-radius: 16px; font-size: .92rem; line-height: 1.45; box-shadow: 0 3px 10px rgba(15,23,42,.08); word-wrap: break-word; }
-    .bubble-row.from-user .bubble { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border-bottom-right-radius: 4px; }
-    .bubble-row.from-dokter .bubble { background: white; color: #0f172a; border-bottom-left-radius: 4px; }
-    .bubble-label { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: .65; margin-bottom: 3px; }
+    .bubble { position: relative; max-width: 75%; padding: 7px 9px 6px 10px; border-radius: 8px; font-size: .9rem; line-height: 1.4; box-shadow: 0 1px 1px rgba(0,0,0,.1); word-wrap: break-word; }
+    .bubble-row.from-user .bubble { background: var(--wa-bubble-out); color: var(--wa-text); border-top-right-radius: 0; }
+    .bubble-row.from-dokter .bubble { background: var(--wa-bubble-in); color: var(--wa-text); border-top-left-radius: 0; }
+    .bubble-label { font-size: .68rem; font-weight: 700; letter-spacing: .02em; color: var(--wa-header); margin-bottom: 2px; }
+    .bubble-text { white-space: pre-wrap; }
+    .bubble-time { float: right; margin: 4px 0 -2px 8px; font-size: .68rem; color: var(--wa-text-muted); }
+    .bubble-row.from-user .bubble-time { display: flex; align-items: center; gap: 3px; }
+    .bubble-tick { color: #53bdeb; }
 
-    .chat-footer { background: white; padding: 14px 18px; border-top: 1px solid #e2e8f0; }
-    .chat-footer input.form-control { border-radius: 50px; border: 1.5px solid #dbeafe; padding: 11px 20px; font-size: .92rem; }
-    .chat-footer input.form-control:focus { border-color: #38bdf8; box-shadow: 0 0 0 .2rem rgba(56,189,248,.18); }
-    .chat-footer button { border-radius: 50px; width: 46px; height: 46px; padding: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none; flex-shrink: 0; }
+    .chat-footer { background: #f0f2f5; padding: 8px 12px; border-top: 1px solid rgba(0,0,0,.05); }
+    .chat-footer input.form-control { border-radius: 24px; border: none; padding: 10px 18px; font-size: .9rem; background: white; }
+    .chat-footer input.form-control:focus { box-shadow: 0 0 0 1.5px var(--wa-header); }
+    .chat-footer button { border-radius: 50%; width: 42px; height: 42px; padding: 0; display: flex; align-items: center; justify-content: center; background: var(--wa-header); border: none; flex-shrink: 0; }
 </style>
 
 <div class="chat-outer">
@@ -159,7 +199,10 @@ if ($selected_dokter_id !== null && $isPaid) {
                     <p class="text-muted mb-1" style="max-width:420px;margin-inline:auto;">Untuk memulai chat dengan dokter pilihan Anda, Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:</p>
                 <?php endif; ?>
                 <div class="chat-lock-price">Rp 45.000</div>
-                <p class="text-muted" style="font-size:.82rem;margin-top:-14px;margin-bottom:20px;">💡 Konsultasi berlaku <strong>1×24 jam</strong> sejak pembayaran berhasil.</p>
+                <div class="chat-lock-notice">
+                    <span style="font-size:1.1rem;">⏳</span>
+                    <span>Setelah pembayaran berhasil, sesi chat dengan dokter <strong>hanya berlaku 1×24 jam</strong>. Lewat dari itu, chat akan terkunci lagi dan Anda perlu membayar ulang.</span>
+                </div>
                 <form method="POST">
                     <button type="submit" name="bayar_chat" class="chat-lock-btn">
                         Bayar Sekarang & Buka Chat
@@ -169,15 +212,16 @@ if ($selected_dokter_id !== null && $isPaid) {
         <?php else: ?>
             <div class="chat-card">
                 <div class="chat-header">
-                    <div class="chat-header-avatar">🩺</div>
-                    <div>
-                        <div class="chat-header-name">Konsultasi Dokter</div>
-                        <div class="chat-header-sub">Sesi aktif &middot; terhubung</div>
+                    <div class="chat-header-avatar"><?= $selectedDokterNama !== '' ? strtoupper(substr($selectedDokterNama, 0, 1)) : '🩺' ?></div>
+                    <div style="min-width:0;">
+                        <div class="chat-header-name"><?= $selectedDokterNama !== '' ? 'dr. ' . htmlspecialchars($selectedDokterNama) : 'Konsultasi Dokter' ?></div>
+                        <div class="chat-header-sub"><?= $selectedDokterSpesialisasi !== '' ? htmlspecialchars($selectedDokterSpesialisasi) : 'Sesi aktif' ?></div>
                     </div>
-                    <div class="chat-timer" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>" style="margin-left:auto;background:rgba(255,255,255,.2);color:white;border-radius:10px;padding:6px 12px;font-size:.75rem;font-weight:700;white-space:nowrap;">⏳ --</div>
+                    <div class="chat-timer" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>" style="margin-left:auto;background:rgba(255,255,255,.18);color:white;border-radius:20px;padding:6px 12px;font-size:.72rem;font-weight:700;white-space:nowrap;">⏳ --</div>
                 </div>
 
                 <div class="chat-body" id="chatBody">
+                    <div class="chat-session-banner">🔒 Sesi konsultasi ini berlaku 1×24 jam sejak pembayaran. Sisa waktu ditampilkan di pojok kanan atas.</div>
                     <?php if (empty($messages)): ?>
                         <div class="chat-empty">
                             <div class="chat-empty-icon">💬</div>
@@ -188,9 +232,15 @@ if ($selected_dokter_id !== null && $isPaid) {
                             <div class="bubble-row <?= $m['pengirim'] === 'user' ? 'from-user' : 'from-dokter' ?>">
                                 <div class="bubble">
                                     <?php if ($m['pengirim'] !== 'user'): ?>
-                                        <div class="bubble-label">Dokter</div>
+                                        <div class="bubble-label">dr. <?= htmlspecialchars($selectedDokterNama) ?></div>
                                     <?php endif; ?>
-                                    <?= linkify($m['pesan']) ?>
+                                    <span class="bubble-text"><?= linkify($m['pesan']) ?></span>
+                                    <span class="bubble-time">
+                                        <?= date('H:i', strtotime($m['created_at'])) ?>
+                                        <?php if ($m['pengirim'] === 'user'): ?>
+                                            <svg class="bubble-tick" width="15" height="11" viewBox="0 0 16 11" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.071.653a.457.457 0 0 0-.304-.102.493.493 0 0 0-.381.178l-6.19 7.636-2.405-2.272a.463.463 0 0 0-.336-.146.47.47 0 0 0-.343.146l-.311.325a.454.454 0 0 0-.14.336c0 .131.047.242.14.336l2.996 2.996c.131.131.25.187.406.187a.475.475 0 0 0 .381-.187l6.826-8.436a.472.472 0 0 0 .105-.35.47.47 0 0 0-.161-.325L11.4.882" fill="currentColor" transform="translate(3.5 -0.1)"/></svg>
+                                        <?php endif; ?>
+                                    </span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -199,7 +249,7 @@ if ($selected_dokter_id !== null && $isPaid) {
 
                 <div class="chat-footer">
                     <form method="POST" class="d-flex gap-2">
-                        <input type="text" name="pesan" placeholder="Tulis pesan..." class="form-control" required autocomplete="off">
+                        <input type="text" name="pesan" placeholder="Ketik pesan" class="form-control" required autocomplete="off">
                         <button type="submit" name="kirim_pesan" title="Kirim">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9-7-9-7v14zm0-7H3"/></svg>
                         </button>
