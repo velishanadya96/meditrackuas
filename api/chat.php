@@ -2,6 +2,24 @@
 // pages/chat.php — Chat Dokter (sisi pasien)
 $chatAlert = '';
 
+if (!function_exists('linkify')) {
+    // Escape dulu, baru ubah URL jadi link yang bisa diklik. Aman dari XSS
+    // karena linkify jalan SETELAH htmlspecialchars, bukan sebelum.
+    function linkify(string $text): string {
+        $escaped = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+        $escaped = preg_replace_callback(
+            '/((https?:\/\/|www\.)[^\s<]+)/i',
+            function ($m) {
+                $display = rtrim($m[1], '.,)');
+                $href = (stripos($display, 'http') === 0) ? $display : 'https://' . $display;
+                return '<a href="' . htmlspecialchars($href, ENT_QUOTES) . '" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;">' . $display . '</a>';
+            },
+            $escaped
+        );
+        return nl2br($escaped);
+    }
+}
+
 // Ambil list semua dokter dan spesialisasinya untuk ditaruh di dropdown/list
 $stmtAllDokter = $db->query("SELECT id, nama, spesialisasi FROM dokter WHERE email IS NOT NULL AND email <> '' ORDER BY nama ASC");
 $listDokter = $stmtAllDokter->fetchAll();
@@ -19,28 +37,33 @@ if ($selected_dokter_id !== null && !in_array($selected_dokter_id, $validIds, tr
     $selected_dokter_id = null;
 }
 
-// Cek Status Pembayaran jika dokter sudah dipilih
+// Cek Status Pembayaran + masa berlaku 1x24 jam sejak dibayar
 $isPaid = false;
+$chatExpiresAt = null; // unix timestamp
 if ($selected_dokter_id !== null) {
-    $stmtCekBayar = $db->prepare("SELECT status FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? AND status = 'lunas' LIMIT 1");
+    $stmtCekBayar = $db->prepare("SELECT status, paid_at FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? AND status = 'lunas' LIMIT 1");
     $stmtCekBayar->execute([$userId, $selected_dokter_id]);
-    if ($stmtCekBayar->fetch()) {
-        $isPaid = true;
+    $bayarRow = $stmtCekBayar->fetch();
+    if ($bayarRow) {
+        $paidAt = $bayarRow['paid_at'] ?? null;
+        if ($paidAt) {
+            $chatExpiresAt = strtotime($paidAt) + 24 * 3600;
+            $isPaid = time() < $chatExpiresAt;
+        }
     }
 }
 
-// ── Handle Simulasi Bayar ──────────────────────────────────────────────────
+// ── Handle Simulasi Bayar (mengaktifkan/reset sesi 24 jam) ────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bayar_chat'])) {
-    // Insert/Update status ke lunas
-    $stmtBayar = $db->prepare("INSERT INTO pembayaran_chat (user_id, dokter_id, nominal, status) 
-                               VALUES (?, ?, 45000, 'lunas') 
-                               ON DUPLICATE KEY UPDATE status = 'lunas'");
+    $stmtBayar = $db->prepare("INSERT INTO pembayaran_chat (user_id, dokter_id, nominal, status, paid_at) 
+                               VALUES (?, ?, 45000, 'lunas', NOW()) 
+                               ON DUPLICATE KEY UPDATE status = 'lunas', paid_at = NOW()");
     $stmtBayar->execute([$userId, $selected_dokter_id]);
     echo "<script>window.location.href='/api/dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
     exit;
 }
 
-// ── Handle kirim pesan ──────────────────────────────────────────────────────
+// ── Handle kirim pesan (redirect setelah insert biar refresh nggak double) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $isPaid) {
     $pesan = trim($_POST['pesan'] ?? '');
     if ($pesan !== '' && $selected_dokter_id !== null) {
@@ -49,8 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $is
              VALUES (?, ?, 'user', ?, 0, NOW())"
         );
         $stmtInsert->execute([$userId, $selected_dokter_id, $pesan]);
-        $chatAlert = 'ok';
     }
+    // Redirect (bukan render ulang) supaya kalau halaman di-refresh, browser
+    // nge-GET halaman ini lagi, bukan resend POST kirim_pesan yang bikin pesan dobel.
+    echo "<script>window.location.href='/api/dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
+    exit;
 }
 
 // ── Tandai pesan dokter sebagai sudah dibaca ──────────────────────────────────
@@ -127,8 +153,13 @@ if ($selected_dokter_id !== null && $isPaid) {
             <div class="chat-lock-card">
                 <div class="chat-lock-icon">💳</div>
                 <h4 class="fw-bold mb-2">Sesi Chat Dokter Terkunci</h4>
-                <p class="text-muted mb-1" style="max-width:420px;margin-inline:auto;">Untuk memulai chat dengan dokter pilihan Anda, Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:</p>
+                <?php if ($chatExpiresAt !== null): ?>
+                    <p class="text-muted mb-1" style="max-width:420px;margin-inline:auto;">Sesi konsultasi sebelumnya sudah berakhir (masa berlaku 24 jam terlampaui). Silakan bayar lagi untuk membuka sesi chat baru:</p>
+                <?php else: ?>
+                    <p class="text-muted mb-1" style="max-width:420px;margin-inline:auto;">Untuk memulai chat dengan dokter pilihan Anda, Anda wajib menyelesaikan pembayaran sesi konsultasi daring sebesar:</p>
+                <?php endif; ?>
                 <div class="chat-lock-price">Rp 45.000</div>
+                <p class="text-muted" style="font-size:.82rem;margin-top:-14px;margin-bottom:20px;">💡 Konsultasi berlaku <strong>1×24 jam</strong> sejak pembayaran berhasil.</p>
                 <form method="POST">
                     <button type="submit" name="bayar_chat" class="chat-lock-btn">
                         Bayar Sekarang & Buka Chat
@@ -143,6 +174,7 @@ if ($selected_dokter_id !== null && $isPaid) {
                         <div class="chat-header-name">Konsultasi Dokter</div>
                         <div class="chat-header-sub">Sesi aktif &middot; terhubung</div>
                     </div>
+                    <div class="chat-timer" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>" style="margin-left:auto;background:rgba(255,255,255,.2);color:white;border-radius:10px;padding:6px 12px;font-size:.75rem;font-weight:700;white-space:nowrap;">⏳ --</div>
                 </div>
 
                 <div class="chat-body" id="chatBody">
@@ -158,7 +190,7 @@ if ($selected_dokter_id !== null && $isPaid) {
                                     <?php if ($m['pengirim'] !== 'user'): ?>
                                         <div class="bubble-label">Dokter</div>
                                     <?php endif; ?>
-                                    <?= nl2br(htmlspecialchars($m['pesan'])) ?>
+                                    <?= linkify($m['pesan']) ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -183,4 +215,24 @@ if ($selected_dokter_id !== null && $isPaid) {
 <script>
     const body = document.getElementById('chatBody');
     if (body) body.scrollTop = body.scrollHeight;
+
+    const timerEl = document.getElementById('chatTimer');
+    if (timerEl) {
+        const expiresAt = parseInt(timerEl.dataset.expires, 10);
+        function tick() {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) {
+                timerEl.textContent = '⏳ Sesi berakhir';
+                clearInterval(iv);
+                setTimeout(() => location.reload(), 1200);
+                return;
+            }
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            timerEl.textContent = `⏳ Sisa ${h}j ${m}m ${s}d`;
+        }
+        tick();
+        const iv = setInterval(tick, 1000);
+    }
 </script>

@@ -217,12 +217,43 @@ if ($page === 'rekam') {
 // ════════════════════════════════════════════
 // PAGE: CHAT
 
+if (!function_exists('linkify')) {
+    // Escape dulu, baru ubah URL jadi link yang bisa diklik. Aman dari XSS
+    // karena linkify jalan SETELAH htmlspecialchars, bukan sebelum.
+    function linkify(string $text): string {
+        $escaped = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+        $escaped = preg_replace_callback(
+            '/((https?:\/\/|www\.)[^\s<]+)/i',
+            function ($m) {
+                $display = rtrim($m[1], '.,)');
+                $href = (stripos($display, 'http') === 0) ? $display : 'https://' . $display;
+                return '<a href="' . htmlspecialchars($href, ENT_QUOTES) . '" target="_blank" rel="noopener noreferrer" style="text-decoration:underline;">' . $display . '</a>';
+            },
+            $escaped
+        );
+        return nl2br($escaped);
+    }
+}
+
 if ($page === 'chat') {
     $chatUserId = (int)($_GET['chat_user'] ?? 0);
     $chatUserName = '';
+    $chatExpiresAt = null; // unix timestamp masa berlaku sesi (1x24 jam sejak bayar)
+    $chatExpired = true;
+
+    // Cek masa berlaku sesi 1x24 jam berdasarkan waktu pembayaran pasien
+    if ($chatUserId) {
+        $stmtBayar = $db->prepare("SELECT paid_at FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? AND status = 'lunas' ORDER BY paid_at DESC LIMIT 1");
+        $stmtBayar->execute([$chatUserId, $dokterId]);
+        $paidAt = $stmtBayar->fetchColumn();
+        if ($paidAt) {
+            $chatExpiresAt = strtotime($paidAt) + 24 * 3600;
+            $chatExpired = time() >= $chatExpiresAt;
+        }
+    }
 
     // Balas Pesan: Terikat ke dokterId yang sedang login dan user yang bersangkutan
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply']) && $chatUserId) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reply']) && $chatUserId && !$chatExpired) {
         $reply = trim($_POST['reply'] ?? '');
         if ($reply !== '') {
             // Pengirim di-set sebagai 'dokter' dan menyertakan dokter_id
@@ -858,10 +889,13 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
         <?php if (!empty($chatUserId) && $chatUserName): ?>
           <div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;background:#f8fafc;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
             <div class="chat-avatar-sm" style="width:36px;height:36px;font-size:.85rem;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
-            <div>
+            <div style="flex:1;">
               <div style="font-weight:700;color:#0f172a;"><?= htmlspecialchars($chatUserName) ?></div>
               <div style="font-size:.72rem;color:#0ea5e9;">● Pasien</div>
             </div>
+            <?php if ($chatExpiresAt !== null): ?>
+              <div class="chat-timer" id="chatTimer" data-expires="<?= $chatExpiresAt * 1000 ?>" style="background:<?= $chatExpired ? '#fee2e2' : '#dbeafe' ?>;color:<?= $chatExpired ? '#b91c1c' : '#1d4ed8' ?>;border-radius:10px;padding:6px 12px;font-size:.72rem;font-weight:700;white-space:nowrap;">⏳ --</div>
+            <?php endif; ?>
           </div>
           <div class="chat-box flex-grow-1" id="chatBox">
             <?php if (empty($chatMessages)): ?>
@@ -871,26 +905,32 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
                 <div style="display:flex;align-items:flex-end;gap:8px;">
                   <div class="chat-avatar-sm" style="width:30px;height:30px;font-size:.75rem;flex-shrink:0;"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
                   <div style="max-width:72%;background:white;border:1px solid #e2e8f0;border-radius:18px 18px 18px 4px;padding:10px 14px;font-size:.875rem;">
-                    <?= nl2br(htmlspecialchars($cm['pesan'])) ?>
+                    <?= linkify($cm['pesan']) ?>
                     <div style="font-size:.68rem;color:#94a3b8;margin-top:4px;"><?= date('H:i',strtotime($cm['created_at'])) ?></div>
                   </div>
                 </div>
               <?php else: ?>
                 <div style="display:flex;justify-content:flex-end;">
                   <div style="max-width:72%;background:linear-gradient(135deg,#38bdf8,#0284c7);color:white;border-radius:18px 18px 4px 18px;padding:10px 14px;font-size:.875rem;">
-                    <?= nl2br(htmlspecialchars($cm['pesan'])) ?>
+                    <?= linkify($cm['pesan']) ?>
                     <div style="font-size:.68rem;opacity:.75;margin-top:4px;text-align:right;"><?= date('H:i',strtotime($cm['created_at'])) ?> · dr. <?= htmlspecialchars($namaDokter) ?></div>
                   </div>
                 </div>
               <?php endif; ?>
             <?php endforeach; endif; ?>
           </div>
+          <?php if ($chatExpired): ?>
+            <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:#fff7ed;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;text-align:center;font-size:.82rem;color:#9a3412;">
+              ⏳ Sesi konsultasi pasien ini sudah lewat 24 jam. Pasien perlu membayar ulang untuk melanjutkan chat.
+            </div>
+          <?php else: ?>
           <div style="padding:14px 16px;border-top:1px solid #e2e8f0;background:white;max-width:620px;margin:0 auto;width:100%;box-sizing:border-box;">
             <form method="POST" action="/api/dashboard_dokter.php?page=chat&chat_user=<?= $chatUserId ?>" style="display:flex;gap:10px;align-items:flex-end;">
               <textarea name="reply" rows="2" style="flex:1;border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:.875rem;resize:none;outline:none;font-family:inherit;" placeholder="Tulis balasan..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
               <button type="submit" style="width:42px;height:42px;border-radius:50%;background:#0ea5e9;border:none;color:white;font-size:1rem;cursor:pointer;flex-shrink:0;">➤</button>
             </form>
           </div>
+          <?php endif; ?>
         <?php else: ?>
           <div style="display:flex;align-items:center;justify-content:center;flex:1;color:#94a3b8;flex-direction:column;gap:10px;">
             <div style="font-size:3rem;">💬</div>
@@ -923,6 +963,23 @@ function isiNamaPasien() {
 }
 const chatBox = document.getElementById('chatBox');
 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+const dokterChatTimer = document.getElementById('chatTimer');
+if (dokterChatTimer) {
+    const expiresAt = parseInt(dokterChatTimer.dataset.expires, 10);
+    function tickDokterTimer() {
+        const diff = expiresAt - Date.now();
+        if (diff <= 0) {
+            dokterChatTimer.textContent = '⏳ Sesi berakhir';
+            return;
+        }
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        dokterChatTimer.textContent = `⏳ Sisa ${h}j ${m}m`;
+    }
+    tickDokterTimer();
+    setInterval(tickDokterTimer, 30000);
+}
 <?php if ($page==='chat' && !empty($chatUserId)): ?>
 setTimeout(() => { location.reload(); }, 6000);
 <?php endif; ?>
