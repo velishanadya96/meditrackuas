@@ -52,10 +52,14 @@ if ($subaction === 'ambil' && isset($_GET['jadwal_id'])) {
             if ($nomorBaru > $jadwal['kuota']) {
                 $msgAntrean = 'danger|Kuota antrean untuk jadwal ini sudah penuh.';
             } else {
+                // Generate id MANUAL sebelum insert — jangan andalkan AUTO_INCREMENT TiDB
+                // sama sekali, karena kadang gagal generate & bikin id NULL.
+                $idBaru = (int) $db->query("SELECT COALESCE(MAX(id), 0) + 1 FROM antrean")->fetchColumn();
+
                 $db->prepare("
-                    INSERT INTO antrean (user_id, jadwal_id, nomor_antrean, status, created_at)
-                    VALUES (?, ?, ?, 'menunggu', NOW())
-                ")->execute([$userId, $jadwalId, $nomorBaru]);
+                    INSERT INTO antrean (id, user_id, jadwal_id, nomor_antrean, status, created_at)
+                    VALUES (?, ?, ?, ?, 'menunggu', NOW())
+                ")->execute([$idBaru, $userId, $jadwalId, $nomorBaru]);
 
                 // Update terisi di jadwal_dokter
                 $db->prepare("
@@ -68,25 +72,6 @@ if ($subaction === 'ambil' && isset($_GET['jadwal_id'])) {
                     UPDATE jadwal_dokter SET status = 'penuh'
                     WHERE id = ? AND terisi >= kuota
                 ")->execute([$jadwalId]);
-
-                // Verifikasi id benar-benar ke-generate (TiDB AUTO_INCREMENT kadang gagal / NULL)
-                $stmtCekId = $db->prepare("
-                    SELECT id FROM antrean
-                    WHERE user_id = ? AND jadwal_id = ? AND nomor_antrean = ?
-                    ORDER BY created_at DESC LIMIT 1
-                ");
-                $stmtCekId->execute([$userId, $jadwalId, $nomorBaru]);
-                $rowCekId = $stmtCekId->fetch();
-
-                if ($rowCekId && $rowCekId['id'] === null) {
-                    // id NULL -> generate manual & isi
-                    $stmtMaxId = $db->query("SELECT COALESCE(MAX(id), 0) + 1 FROM antrean");
-                    $idBaru = (int) $stmtMaxId->fetchColumn();
-                    $db->prepare("
-                        UPDATE antrean SET id = ?
-                        WHERE user_id = ? AND jadwal_id = ? AND nomor_antrean = ? AND id IS NULL
-                    ")->execute([$idBaru, $userId, $jadwalId, $nomorBaru]);
-                }
 
                 $msgAntrean = "success|Berhasil ambil antrean! Nomor kamu: <strong>#$nomorBaru</strong>";
             }
