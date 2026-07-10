@@ -19,28 +19,55 @@ if ($selected_dokter_id !== null && !in_array($selected_dokter_id, $validIds, tr
     $selected_dokter_id = null;
 }
 
-// Cek Status Pembayaran jika dokter sudah dipilih
-$isPaid = false;
+// Cek Status Pembayaran & sisa waktu sesi (berlaku 1x24 jam sejak bayar)
+$isPaid      = false;   // sesi masih aktif -> boleh kirim pesan
+$isExpired   = false;   // pernah bayar tapi sudah lewat 24 jam -> chat cuma bisa dibaca
+$hasEverPaid = false;
+$expiresAt   = null;    // unix timestamp kadaluarsa sesi
+
 if ($selected_dokter_id !== null) {
-    $stmtCekBayar = $db->prepare("SELECT status FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? AND status = 'lunas' LIMIT 1");
+    // Jaga-jaga untuk instalasi lama yang tabelnya belum punya kolom paid_at
+    try {
+        $db->exec("ALTER TABLE pembayaran_chat ADD COLUMN paid_at DATETIME NULL");
+    } catch (Exception $e) { /* kolom sudah ada, aman diabaikan */ }
+
+    $stmtCekBayar = $db->prepare("SELECT status, paid_at FROM pembayaran_chat WHERE user_id = ? AND dokter_id = ? LIMIT 1");
     $stmtCekBayar->execute([$userId, $selected_dokter_id]);
-    if ($stmtCekBayar->fetch()) {
-        $isPaid = true;
+    $bayarRow = $stmtCekBayar->fetch();
+
+    if ($bayarRow && $bayarRow['status'] === 'lunas') {
+        $hasEverPaid = true;
+
+        // Data lama sebelum kolom paid_at ada -> anggap baru saja bayar & simpan sekali
+        if (empty($bayarRow['paid_at'])) {
+            $db->prepare("UPDATE pembayaran_chat SET paid_at = NOW() WHERE user_id = ? AND dokter_id = ?")
+               ->execute([$userId, $selected_dokter_id]);
+            $paidAtTs = time();
+        } else {
+            $paidAtTs = strtotime($bayarRow['paid_at']);
+        }
+
+        $expiresAt = $paidAtTs + 86400; // 1 x 24 jam
+
+        if (time() < $expiresAt) {
+            $isPaid = true;
+        } else {
+            $isExpired = true;
+        }
     }
 }
 
-// ── Handle Simulasi Bayar ──────────────────────────────────────────────────
+// ── Handle Simulasi Bayar (juga dipakai untuk perpanjang sesi hari berikutnya) ─
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bayar_chat'])) {
-    // Insert/Update status ke lunas
-    $stmtBayar = $db->prepare("INSERT INTO pembayaran_chat (user_id, dokter_id, nominal, status) 
-                               VALUES (?, ?, 45000, 'lunas') 
-                               ON DUPLICATE KEY UPDATE status = 'lunas'");
+    $stmtBayar = $db->prepare("INSERT INTO pembayaran_chat (user_id, dokter_id, nominal, status, paid_at) 
+                               VALUES (?, ?, 45000, 'lunas', NOW()) 
+                               ON DUPLICATE KEY UPDATE status = 'lunas', paid_at = NOW()");
     $stmtBayar->execute([$userId, $selected_dokter_id]);
     echo "<script>window.location.href='/api/dashboarduser.php?page=chat&dokter_id=".$selected_dokter_id."';</script>";
     exit;
 }
 
-// ── Handle kirim pesan ──────────────────────────────────────────────────────
+// ── Handle kirim pesan (hanya kalau sesi masih aktif, bukan expired) ─────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_pesan']) && $isPaid) {
     $pesan = trim($_POST['pesan'] ?? '');
     if ($pesan !== '' && $selected_dokter_id !== null) {
@@ -62,8 +89,9 @@ if ($selected_dokter_id !== null) {
 }
 
 // ── Ambil semua pesan history berdasarkan dokter yang dipilih ─────────────────
+// Riwayat tetap bisa dibaca walau sesi sudah expired, hanya kirim pesan yang dikunci.
 $messages = [];
-if ($selected_dokter_id !== null && $isPaid) {
+if ($selected_dokter_id !== null && ($isPaid || $isExpired)) {
     $stmtMsg = $db->prepare(
         "SELECT * FROM konsultasi_chat WHERE user_id = ? AND dokter_id = ? ORDER BY created_at ASC"
     );
@@ -123,7 +151,7 @@ if ($selected_dokter_id !== null && $isPaid) {
     </div>
 
     <?php if ($selected_dokter_id !== null): ?>
-        <?php if (!$isPaid): ?>
+        <?php if (!$hasEverPaid): ?>
             <div class="chat-lock-card">
                 <div class="chat-lock-icon">💳</div>
                 <h4 class="fw-bold mb-2">Sesi Chat Dokter Terkunci</h4>
@@ -144,7 +172,11 @@ if ($selected_dokter_id !== null && $isPaid) {
                     <div class="chat-header-avatar">🩺</div>
                     <div>
                         <div class="chat-header-name">Konsultasi Dokter</div>
-                        <div class="chat-header-sub">Sesi aktif &middot; terhubung</div>
+                        <?php if ($isPaid): ?>
+                            <div class="chat-header-sub">Sesi aktif &middot; sisa waktu <strong id="sisaWaktu" data-expires="<?= $expiresAt ?>">--</strong></div>
+                        <?php else: ?>
+                            <div class="chat-header-sub">Sesi sudah berakhir &middot; mode baca saja</div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -168,6 +200,7 @@ if ($selected_dokter_id !== null && $isPaid) {
                     <?php endif; ?>
                 </div>
 
+                <?php if ($isPaid): ?>
                 <div class="chat-footer">
                     <form method="POST" class="d-flex gap-2">
                         <input type="text" name="pesan" placeholder="Tulis pesan..." class="form-control" required autocomplete="off">
@@ -176,6 +209,19 @@ if ($selected_dokter_id !== null && $isPaid) {
                         </button>
                     </form>
                 </div>
+                <?php else: ?>
+                <div class="chat-footer text-center">
+                    <p class="text-muted mb-2" style="font-size:.85rem;">
+                        <i class="bi bi-lock-fill me-1"></i>Sesi 1x24 jam sudah habis. Riwayat chat di atas tetap bisa dibaca,
+                        tapi untuk lanjut chat lagi wajib bayar ulang.
+                    </p>
+                    <form method="POST">
+                        <button type="submit" name="bayar_chat" class="chat-lock-btn" style="padding:11px 32px;font-size:.92rem;">
+                            Bayar Rp 45.000 & Lanjut Chat
+                        </button>
+                    </form>
+                </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     <?php else: ?>
@@ -186,4 +232,22 @@ if ($selected_dokter_id !== null && $isPaid) {
 <script>
     const body = document.getElementById('chatBody');
     if (body) body.scrollTop = body.scrollHeight;
+
+    const sisaWaktuEl = document.getElementById('sisaWaktu');
+    if (sisaWaktuEl) {
+        const expiresAt = parseInt(sisaWaktuEl.dataset.expires, 10) * 1000;
+        function updateSisaWaktu() {
+            const diff = expiresAt - Date.now();
+            if (diff <= 0) {
+                sisaWaktuEl.textContent = 'sesi berakhir';
+                location.reload();
+                return;
+            }
+            const jam = Math.floor(diff / 3600000);
+            const menit = Math.floor((diff % 3600000) / 60000);
+            sisaWaktuEl.textContent = jam + ' jam ' + menit + ' menit';
+        }
+        updateSisaWaktu();
+        setInterval(updateSisaWaktu, 30000);
+    }
 </script>
