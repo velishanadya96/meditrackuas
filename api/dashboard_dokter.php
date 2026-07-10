@@ -434,8 +434,13 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
     --wa-text: #0f172a;
     --wa-text-muted: #64748b;
 }
-.wa-shell { border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.12); border: 1px solid rgba(0,0,0,.05); min-height: 560px; }
-.wa-sidebar { background: white; border-right: 1px solid #e9edef; }
+.wa-shell { display: flex; align-items: stretch; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,.12); border: 1px solid rgba(0,0,0,.05); min-height: 560px; background: white; }
+.wa-sidebar { background: white; border-right: 1px solid #e9edef; flex: 0 0 320px; max-width: 320px; overflow-y: auto; }
+.wa-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+@media (max-width: 767px) {
+    .wa-shell { flex-direction: column; min-height: 0; }
+    .wa-sidebar { flex: 0 0 auto; max-width: none; max-height: 260px; }
+}
 .wa-sidebar-head { padding: 16px 18px; font-weight: 700; font-size: .8rem; letter-spacing: .04em; color: white; background: linear-gradient(135deg, var(--wa-header), var(--wa-header-dark)); }
 .wa-list-item { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: .15s; display: flex; align-items: center; gap: 12px; text-decoration: none; }
 .wa-list-item:hover { background: #f0f9ff; }
@@ -919,8 +924,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
       <h2>💬 <span style="color:var(--primary);">Chat Pasien</span></h2>
       <p>Balas pesan dari pasien yang pernah antrean ke Anda</p>
     </div>
-    <div class="row g-0 card wa-shell">
-      <div class="col-md-4 wa-sidebar">
+    <div class="wa-shell">
+      <div class="wa-sidebar">
         <div class="wa-sidebar-head">💬 PASIEN</div>
         <?php if (empty($chatUsers)): ?>
           <div class="empty-state"><i class="bi bi-chat-square d-block"></i><p>Belum ada pasien yang chat.</p></div>
@@ -935,7 +940,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-gradient
           </a>
         <?php endforeach; endif; ?>
       </div>
-      <div class="col-md-8 d-flex flex-column">
+      <div class="wa-panel">
         <?php if (!empty($chatUserId) && $chatUserName): ?>
           <div class="wa-chat-header">
             <div class="wa-avatar"><?= strtoupper(substr($chatUserName,0,1)) ?></div>
@@ -1034,7 +1039,10 @@ if (dokterChatTimer) {
     setInterval(tickDokterTimer, 30000);
 }
 <?php if ($page==='chat' && !empty($chatUserId)): ?>
-setTimeout(() => { location.reload(); }, 6000);
+setTimeout(() => {
+    const replyBox = document.querySelector('.wa-footer textarea[name="reply"]');
+    if (!replyBox || replyBox.value.trim() === '') location.reload();
+}, 8000);
 <?php endif; ?>
 </script>
 </body>
